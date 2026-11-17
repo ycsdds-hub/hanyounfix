@@ -1,0 +1,40 @@
+{
+  "manifest_version": 3,
+  "name": "한영 오타 자동 교정",
+  "short_name": "한영교정",
+  "version": "0.1.0",
+  "description": "한/영 전환을 잘못한 채 입력한 단어(dkssud → 안녕, ㅗ디ㅣㅐ → hello)를 입력창에서 바로 고쳐 줍니다.",
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_title": "한영 오타 자동 교정",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png"
+    }
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["hangul.js", "content.js"],
+      "run_at": "document_idle",
+      "all_frames": true,
+      "match_about_blank": true
+    }
+  ],
+  "permissions": ["storage", "activeTab"],
+  "commands": {
+    "toggle-enabled": {
+      "suggested_key": { "default": "Alt+Shift+H", "mac": "Alt+Shift+H" },
+      "description": "자동 교정 켜기/끄기"
+    }
+  }
+}

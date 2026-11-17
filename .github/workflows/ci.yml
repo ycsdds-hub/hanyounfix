@@ -1,0 +1,23 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - run: npm test
+      - name: 확장 프로그램 zip 만들기
+        run: cd extension && zip -r ../hanyoung-fix-extension.zip . -x '.*'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hanyoung-fix-extension
+          path: hanyoung-fix-extension.zip

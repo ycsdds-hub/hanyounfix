@@ -1,0 +1,15 @@
+{
+  "name": "hanyoung-fix",
+  "version": "0.1.0",
+  "private": true,
+  "description": "한영전환을 잘못한 채 입력한 단어를 자동으로 고쳐 주는 Chrome 확장 프로그램",
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "build:words": "node scripts/build-words.mjs"
+  },
+  "devDependencies": {
+    "wordlist-english": "^1.2.1"
+  },
+  "license": "MIT"
+}

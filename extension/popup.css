@@ -1,0 +1,38 @@
+:root {
+  --bg: #ffffff; --fg: #1f2328; --muted: #656d76; --line: #d0d7de; --accent: #1a7f37; --field: #f6f8fa;
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #161b22; --fg: #e6edf3; --muted: #8d96a0; --line: #30363d; --accent: #3fb950; --field: #0d1117; }
+}
+* { box-sizing: border-box; }
+body {
+  width: 320px; margin: 0; padding: 14px 16px 12px; background: var(--bg); color: var(--fg);
+  font: 13px/1.45 -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+}
+header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+h1 { font-size: 15px; margin: 0; }
+h2 { font-size: 13px; margin: 0 0 4px; }
+.row {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 8px 0; border-bottom: 1px solid var(--line); cursor: pointer;
+}
+.row span { display: flex; flex-direction: column; }
+small, p { color: var(--muted); font-size: 12px; }
+p { margin: 0 0 6px; }
+.switch span { font-weight: 600; }
+input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--accent); }
+input[type="number"] {
+  width: 56px; padding: 3px 6px; border: 1px solid var(--line); border-radius: 6px;
+  background: var(--field); color: var(--fg); font: inherit;
+}
+section { margin-top: 12px; }
+textarea {
+  width: 100%; resize: vertical; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px;
+  background: var(--field); color: var(--fg); font: 12px/1.5 ui-monospace, Menlo, Consolas, monospace;
+}
+footer { margin-top: 10px; color: var(--muted); font-size: 12px; }
+kbd {
+  font: 11px ui-monospace, Menlo, Consolas, monospace; padding: 1px 4px;
+  border: 1px solid var(--line); border-radius: 4px; background: var(--field);
+}

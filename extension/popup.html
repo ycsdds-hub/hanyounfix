@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header>
+    <img src="icons/icon32.png" alt="" width="20" height="20">
+    <h1>한영 오타 자동 교정</h1>
+  </header>
+
+  <label class="row switch">
+    <span>자동 교정</span>
+    <input type="checkbox" id="enabled">
+  </label>
+  <label class="row">
+    <span>이 사이트에서 끄기<small id="host"></small></span>
+    <input type="checkbox" id="siteOff">
+  </label>
+  <label class="row">
+    <span>교정할 때 알림 표시</span>
+    <input type="checkbox" id="showToast">
+  </label>
+  <label class="row">
+    <span>띄어쓰기 전에도 검사할 글자 수<small>영어 모드로 한글을 길게 칠 때</small></span>
+    <input type="number" id="checkLength" min="5" max="30">
+  </label>
+
+  <section>
+    <h2>고치지 않을 단어</h2>
+    <p>이름, 약어, 아이디처럼 그대로 둘 단어를 한 줄에 하나씩 적으세요. 교정 직후 Ctrl+Z로 되돌린 단어도 여기에 추가돼요.</p>
+    <textarea id="userWords" rows="5" spellcheck="false" placeholder="예) kakao&#10;dkssud"></textarea>
+  </section>
+
+  <footer>단축키 <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>H</kbd> 로 켜고 끌 수 있어요.</footer>
+  <script src="popup.js"></script>
+</body>
+</html>
