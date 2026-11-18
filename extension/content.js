@@ -10,7 +10,7 @@
   window.__hanyoungFixLoaded = true;
 
   const HY = globalThis.HanYoung;
-  const DEFAULTS = { enabled: true, disabledSites: [], userWords: [], showToast: true, checkLength: 10 };
+  const DEFAULTS = { enabled: true, disabledSites: [], userWords: [], showToast: true, checkLength: 6 };
   const BOUNDARY = /^[\s.,!?;:)\]}"”…~]$/;
   const BLOCKED_BEFORE = /[0-9_@#/\\.:\-=+&%$]/;
   const CODE_EDITORS = '.monaco-editor, .cm-editor, .CodeMirror, .ace_editor';
@@ -34,6 +34,7 @@
   const active = () => settings.enabled && !settings.disabledSites.includes(host);
 
   // ---------- 사전 조회 (background에 위임, 결과 캐시) ----------
+  // cache: 단어 → { w: 사전에 있음, c: 흔한 단어, p: 더 긴 단어의 앞부분 }
   const cache = new Map();
   const pending = new Map();
   function lookup(words) {
@@ -41,7 +42,10 @@
     if (missing.length) {
       const p = chrome.runtime
         .sendMessage({ type: 'lookup', words: missing })
-        .then((res) => missing.forEach((w, i) => cache.set(w, !!res?.[i])))
+        .then((res) => {
+          if (!Array.isArray(res)) return; // 응답 실패 시 캐시하지 않고 다음에 다시 조회
+          missing.forEach((w, i) => cache.set(w, res[i] || { w: false, c: false, p: false }));
+        })
         .catch(() => {})
         .finally(() => missing.forEach((w) => pending.delete(w)));
       missing.forEach((w) => pending.set(w, p));
@@ -50,10 +54,14 @@
   }
   const candidates = (token) =>
     /^[A-Za-z]+$/.test(token) ? [token.toLowerCase()] : [HY.hangulToEng(token).toLowerCase()];
-  const isEnglishWord = (w) => userWords.has(w) || cache.get(w) === true;
+  const dict = {
+    isWord: (w) => userWords.has(w) || cache.get(w)?.w === true,
+    isCommon: (w) => userWords.has(w) || cache.get(w)?.c === true,
+    isPrefix: (w) => cache.get(w)?.p === true,
+  };
 
   /** 동기 판단. 사전 결과가 아직 없으면 undefined */
-  function judge(tok, cont) {
+  function judge(tok, cont, midWord) {
     const { token } = tok;
     if (userWords.has(token.toLowerCase())) return null;
     if (cont && /^[A-Za-z]+$/.test(token)) {
@@ -62,7 +70,7 @@
       return [...h].every(HY.isSyllable) ? h : null;
     }
     if (candidates(token).some((w) => !cache.has(w) && !userWords.has(w))) return undefined;
-    return HY.decide(token, isEnglishWord);
+    return HY.decide(token, dict, { midWord });
   }
 
   // ---------- 입력창 다루기 ----------
@@ -141,8 +149,9 @@
   /** 동기적으로 판단 가능하면 바로 고치고 true */
   function tryFix(ctx, tok, { midWord = false } = {}) {
     const cont = isContinuation(ctx.el, tok);
-    if (!cont && tok.token.length < 3) return true;
-    const fixed = judge(tok, cont);
+    // 길이 제한은 decide()가 키 개수로 판단 (한글 2글자도 키는 4개 이상일 수 있음)
+    if (!cont && tok.token.length < 2) return true;
+    const fixed = judge(tok, cont, midWord);
     if (fixed === undefined) return false;
     if (!fixed) return true;
 
@@ -159,7 +168,14 @@
     }
     const original = tok.token.slice(0, end - start);
     replaceRange(ctx, start, end, replacement);
-    lastFix.set(ctx.el, { contAt, original, fixed: replacement, time: Date.now() });
+    // 이어서 친 글자를 고친 경우에도 되돌리기 학습은 단어 전체(처음 원문)를 기준으로
+    const prev = cont ? lastFix.get(ctx.el) : null;
+    lastFix.set(ctx.el, {
+      contAt, start: prev ? prev.start : start,
+      original: prev ? prev.original + original : original,
+      fixed: prev ? prev.fixed + replacement : replacement,
+      time: Date.now(),
+    });
     if (!cont) toast(original, replacement);
     return true;
   }
@@ -185,8 +201,6 @@
   }
 
   // ---------- 이벤트 ----------
-  const checkedRuns = new WeakMap(); // el → 마지막으로 중간 검사한 단어 시작 위치
-
   window.addEventListener('compositionstart', () => { composing = true; }, true);
   window.addEventListener('compositionend', () => {
     composing = false;
@@ -209,8 +223,8 @@
     const tok = findToken(ctx.text, ctx.caret);
     if (!tok) return;
     lookup(candidates(tok.token)); // Enter 대비 미리 조회
-    if (/^[A-Za-z]$/.test(e.data) && tok.token.length >= settings.checkLength && checkedRuns.get(el) !== tok.start) {
-      checkedRuns.set(el, tok.start);
+    // 기준 글자 수 이상이면 글자를 칠 때마다 검사 (영어 단어의 앞부분처럼 보이면 다음 글자에서 다시 판단)
+    if (/^[A-Za-z]$/.test(e.data) && tok.token.length >= settings.checkLength) {
       checkAsync(el, ctx.caret, { midWord: true });
     }
   }, true);
@@ -223,7 +237,10 @@
     // 고친 직후 되돌리면 그 단어는 앞으로 고치지 않음
     if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'z') {
       const f = lastFix.get(el);
-      if (f && Date.now() - f.time < 8000) {
+      const ctx = f && readContext(el);
+      // 고친 글자가 아직 그 자리에 있을 때만 (다른 편집을 되돌리는 경우는 학습하지 않음)
+      const stillThere = ctx && ctx.text.slice(f.start, f.start + f.fixed.length) === f.fixed;
+      if (f && stillThere && Date.now() - f.time < 8000) {
         lastFix.delete(el);
         const word = f.original.toLowerCase();
         if (!userWords.has(word)) {

@@ -5,62 +5,52 @@ import { readFileSync } from 'node:fs';
 await import('../extension/hangul.js');
 const { engToHangul, hangulToEng, decide } = globalThis.HanYoung;
 
-const words = new Set(
-  readFileSync(new URL('../extension/words.txt', import.meta.url), 'utf8').split('\n').filter(Boolean),
-);
-const isWord = (w) => words.has(w);
+const list = (f) => readFileSync(new URL(`../extension/${f}`, import.meta.url), 'utf8').split('\n').filter(Boolean);
+const sorted = list('words.txt');
+const all = new Set(sorted);
+const common = new Set(list('common.txt'));
+const isPrefix = (w) => {
+  let lo = 0;
+  let hi = sorted.length;
+  while (lo < hi) {
+    const m = (lo + hi) >> 1;
+    if (sorted[m] < w) lo = m + 1;
+    else hi = m;
+  }
+  for (let i = lo; i < sorted.length && sorted[i].startsWith(w); i++) if (sorted[i].length > w.length) return true;
+  return false;
+};
+const dict = { isWord: (w) => all.has(w), isCommon: (w) => common.has(w), isPrefix };
+const cases = JSON.parse(readFileSync(new URL('./cases.json', import.meta.url), 'utf8'));
+
+test('단어 목록은 정렬되어 있음 (접두사 이진 탐색 전제)', () => {
+  for (let i = 1; i < sorted.length; i++) assert.ok(sorted[i - 1] < sorted[i], sorted[i]);
+});
 
 test('영문 키 → 한글 조합', () => {
-  assert.equal(engToHangul('dkssudgktpdy'), '안녕하세요');
-  assert.equal(engToHangul('tkfkdgody'), '사랑해요');
-  assert.equal(engToHangul('dhkswjs'), '완전');          // 겹모음
-  assert.equal(engToHangul('dkswdk'), '앉아');          // 겹받침 ㄵ
-  assert.equal(engToHangul('qkfqdk'), '밟아');          // 겹받침 ㄼ
-  assert.equal(engToHangul('dlTek'), '있다');           // 쌍받침
-  assert.equal(engToHangul('dlfrrh'), '읽고');          // 겹받침
-  assert.equal(engToHangul('Rhc'), '꽃');               // 쌍자음 + 받침
+  for (const [keys, hangul] of cases.convert) assert.equal(engToHangul(keys), hangul, keys);
 });
 
 test('한글 → 영문 키', () => {
   assert.equal(hangulToEng('ㅗ디ㅣㅐ'), 'hello');
-  assert.equal(hangulToEng('안녕'), 'dkssud');
-  assert.equal(hangulToEng('완전'), 'dhkswjs');
-  assert.equal(hangulToEng('읽고'), 'dlfrrh');
+  for (const [keys, hangul] of cases.convert) assert.equal(hangulToEng(hangul), keys.replace(/[A-Z]/g, (c) => ('QWERTOP'.includes(c) ? c : c.toLowerCase())), hangul);
 });
 
 test('왕복 변환', () => {
-  for (const w of ['안녕하세요', '읽었다', '꽃밭에서', '괜찮아', '뷁']) {
-    assert.equal(engToHangul(hangulToEng(w)), w);
+  for (const w of ['안녕하세요', '읽었다', '꽃밭에서', '괜찮아', '뷁']) assert.equal(engToHangul(hangulToEng(w)), w);
+});
+
+test('공통 판단 사례 (cases.json)', () => {
+  for (const [token, midWord, expect] of cases.decide) {
+    assert.equal(decide(token, dict, { midWord }), expect, `${token} (midWord=${midWord})`);
   }
 });
 
-test('영어 모드에서 친 한글 → 교정', () => {
-  assert.equal(decide('dkssudgktpdy', isWord), '안녕하세요');
-  assert.equal(decide('gksrmf', isWord), '한글');
-  assert.equal(decide('Rhc', isWord), '꽃');
+test('6글자 중간 검사: 7자 이상 영어 단어를 앞부분에서 잘못 바꾸지 않음', () => {
+  const bad = sorted.filter((w) => w.length >= 7 && decide(w.slice(0, 6), dict, { midWord: true }));
+  assert.deepEqual(bad.slice(0, 10), []);
 });
 
-test('진짜 영어는 그대로', () => {
-  for (const w of ['hello', 'world', 'keyboard', 'the', 'github', 'Seoul', 'Tom', 'API', 'iPhone', 'lol', 'omg']) {
-    assert.equal(decide(w, isWord), null, w);
-  }
-});
-
-test('한글 모드에서 친 영어 → 교정', () => {
-  assert.equal(decide('ㅗ디ㅣㅐ', isWord), 'hello');
-  assert.equal(decide('재기ㅇ', isWord), 'world');
-  assert.equal(decide('ㅅㄷㄴㅅ', isWord), 'test');
-  assert.equal(decide('햐소ㅕㅠ', isWord), 'github');   // 사전에 없어도 단독 모음 ㅕ
-  assert.equal(decide('캐ㅐㅡ', isWord), 'zoom');
-});
-
-test('진짜 한글은 그대로', () => {
-  for (const w of ['안녕하세요', '한글', '사랑해', 'ㅋㅋㅋ', 'ㅠㅠ', 'ㅎㅎㅎ', 'ㅇㅇ', 'ㄱㄱ', '감사합니다', '진짜', '우리', '오늘']) {
-    assert.equal(decide(w, isWord), null, w);
-  }
-});
-
-test('섞인 단어, 짧은 단어는 건드리지 않음', () => {
-  assert.equal(decide('안녕hi', isWord), null);
-  assert.equal(decide('gk', isWord), null);
+test('예전 호출 방식(함수 하나)도 동작', () => {
+  assert.equal(decide('dkssud', (w) => all.has(w)), '안녕');
 });

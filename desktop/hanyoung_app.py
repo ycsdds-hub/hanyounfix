@@ -21,7 +21,7 @@ except Exception:  # 미설치 또는 디스플레이 없음
 from hanyoung_fix import JAMO2KEY, WORDS, eng_to_hangul, hangul_to_eng
 
 # ---------- 설정 ----------
-CHECK_LEN = 10      # 이 글자 수에 도달하면 (띄어쓰기 전이라도) 한 번 검사
+CHECK_LEN = 6       # 이 글자 수에 도달하면 (띄어쓰기 전이라도) 한 번 검사
 MIN_LEN = 3         # 이보다 짧은 단어는 오탐 방지를 위해 검사하지 않음
 KO, EN = "ko", "en"
 SHIFT_JAMO_KEYS = set("QWERTOP")  # 두벌식에서 Shift가 의미 있는 키

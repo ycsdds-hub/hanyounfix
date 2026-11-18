@@ -90,7 +90,9 @@ file test is are was were has had been am i""".split())
 
 
 def _load_words():
-    for path in (os.environ.get("WORDLIST", ""), "/usr/share/dict/words", "/usr/share/dict/american-english"):
+    here = os.path.dirname(os.path.abspath(__file__))
+    for path in (os.environ.get("WORDLIST", ""), os.path.join(here, "..", "extension", "words.txt"),
+                 "/usr/share/dict/words", "/usr/share/dict/american-english"):
         if path and os.path.exists(path):
             with open(path, encoding="utf-8", errors="ignore") as f:
                 return {w.strip().lower() for w in f if len(w.strip()) > 1}

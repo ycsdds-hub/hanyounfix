@@ -1,4 +1,4 @@
-const DEFAULTS = { enabled: true, disabledSites: [], userWords: [], showToast: true, checkLength: 10 };
+const DEFAULTS = { enabled: true, disabledSites: [], userWords: [], showToast: true, checkLength: 6 };
 const $ = (id) => document.getElementById(id);
 
 (async () => {
@@ -25,7 +25,7 @@ const $ = (id) => document.getElementById(id);
   $('enabled').addEventListener('change', (e) => chrome.storage.sync.set({ enabled: e.target.checked }));
   $('showToast').addEventListener('change', (e) => chrome.storage.sync.set({ showToast: e.target.checked }));
   $('checkLength').addEventListener('change', (e) => {
-    const n = Math.min(30, Math.max(5, parseInt(e.target.value, 10) || DEFAULTS.checkLength));
+    const n = Math.min(30, Math.max(4, parseInt(e.target.value, 10) || DEFAULTS.checkLength));
     e.target.value = n;
     chrome.storage.sync.set({ checkLength: n });
   });

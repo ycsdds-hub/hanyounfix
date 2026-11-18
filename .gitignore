@@ -3,3 +3,7 @@ node_modules/
 .DS_Store
 __pycache__/
 *.pyc
+windows/build/
+windows/dist/
+windows/icon.ico
+*.spec

@@ -1,17 +1,42 @@
 // 영어 사전 조회, 단축키, 툴바 배지 처리
 const DEFAULTS = { enabled: true, disabledSites: [] };
 
-let wordsPromise = null;
-function loadWords() {
-  wordsPromise ??= fetch(chrome.runtime.getURL('words.txt'))
+const readList = (file) =>
+  fetch(chrome.runtime.getURL(file))
     .then((r) => r.text())
-    .then((t) => new Set(t.split('\n')));
-  return wordsPromise;
+    .then((t) => t.split('\n').filter(Boolean));
+
+let dictPromise = null;
+function loadDict() {
+  dictPromise ??= Promise.all([readList('words.txt'), readList('common.txt')]).then(([all, common]) => ({
+    sorted: all, // build-words.mjs가 정렬해 둠
+    all: new Set(all),
+    common: new Set(common),
+  }));
+  dictPromise.catch(() => { dictPromise = null; });
+  return dictPromise;
+}
+
+/** w로 시작하는 더 긴 단어가 있는가 (이진 탐색) */
+function isPrefix(sorted, w) {
+  let lo = 0;
+  let hi = sorted.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (sorted[mid] < w) lo = mid + 1;
+    else hi = mid;
+  }
+  for (let i = lo; i < sorted.length && sorted[i].startsWith(w); i++) {
+    if (sorted[i].length > w.length) return true;
+  }
+  return false;
 }
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg?.type === 'lookup' && Array.isArray(msg.words)) {
-    loadWords().then((set) => sendResponse(msg.words.map((w) => set.has(w))));
+    loadDict()
+      .then((d) => sendResponse(msg.words.map((w) => ({ w: d.all.has(w), c: d.common.has(w), p: isPrefix(d.sorted, w) }))))
+      .catch(() => sendResponse(null));
     return true; // 비동기 응답
   }
   return false;

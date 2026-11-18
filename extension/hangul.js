@@ -98,22 +98,44 @@
   // 단독으로 쓰여도 자연스러운 모음 (ㅠㅠ, ㅜㅜ, ㅡㅡ)
   const COMMON_LONE_VOWELS = new Set([...'ㅠㅜㅡ']);
 
+  // 키로 바꾸면 흔한 영어 단어가 되지만 실제로 쓰는 한글 단어 (영어로 바꾸지 않음)
+  const KO_EXCEPTIONS = new Set([
+    '재가', '재구', '무미', '모드', '해미', '애주', '개차', '래미', '두표', '책미', '미새',
+    '소무', '소두', '노래', '애애', '야미', '채미', '여미', '샤차', '내차',
+  ]);
+
+  /**
+   * 사전 조회 함수 묶음. 모두 소문자 영단어를 받습니다.
+   * @typedef {object} Dict
+   * @property {(w: string) => boolean} isWord    전체 사전에 있는 단어인가
+   * @property {(w: string) => boolean} [isCommon] 흔한 단어인가 (없으면 isWord)
+   * @property {(w: string) => boolean} [isPrefix] 더 긴 영단어의 앞부분인가 (없으면 false)
+   */
+
   /**
    * 잘못된 입력 모드로 쳐진 단어인지 판단합니다.
    * @param {string} token  한 가지 문자 종류(영문만 또는 한글만)로 된 단어
-   * @param {(w: string) => boolean} isEnglishWord  소문자 영단어 사전 조회
-   * @param {{minLength?: number}} [opts]
+   * @param {Dict|((w: string) => boolean)} dict
+   * @param {{minLength?: number, midWord?: boolean}} [opts]
+   *   midWord: 아직 단어를 치는 중(띄어쓰기 전)에 검사하는 경우
    * @returns {string|null} 교정된 단어, 교정이 필요 없으면 null
    */
-  function decide(token, isEnglishWord, opts = {}) {
+  function decide(token, dict, opts = {}) {
     const minLength = opts.minLength ?? 3;
+    const d = typeof dict === 'function' ? { isWord: dict } : dict;
+    const isWord = d.isWord;
+    const isCommon = d.isCommon || d.isWord;
+    const isPrefix = d.isPrefix || (() => false);
 
     // 1) 영어로 입력됐지만 한글이어야 했던 경우
     if (/^[A-Za-z]+$/.test(token)) {
       if (token.length < minLength) return null;
       // 한글 IME에서 의미 없는 대문자(A, B, ...)가 있으면 의도적인 영어
       if ([...token].some((c) => c >= 'A' && c <= 'Z' && !SHIFT_KEYS.has(c))) return null;
-      if (isEnglishWord(token.toLowerCase())) return null;
+      const lower = token.toLowerCase();
+      if (isWord(lower)) return null;
+      // 치는 중인 긴 영어 단어의 앞부분일 수 있으면 끝까지 기다림
+      if (opts.midWord && isPrefix(lower)) return null;
       const hangul = engToHangul(token);
       return [...hangul].every(isSyllable) ? hangul : null;
     }
@@ -130,7 +152,9 @@
       const lower = eng.toLowerCase();
       const hasStray = jamos.length > 0;
       const loneVowel = jamos.some((c) => VOWELS.has(c) && !COMMON_LONE_VOWELS.has(c));
-      if (isEnglishWord(lower) && (hasStray || eng.length >= 4)) return lower;
+      if (hasStray && isWord(lower)) return lower;
+      // 온전한 한글 글자로만 된 경우: 흔한 영단어이고 알려진 한글 단어가 아닐 때만
+      if (!hasStray && eng.length >= 4 && isCommon(lower) && !KO_EXCEPTIONS.has(token)) return lower;
       if (loneVowel && eng.length >= 4) return lower; // 사전에 없어도 한글로는 거의 쓰지 않는 형태
       return null;
     }
