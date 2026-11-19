@@ -132,6 +132,11 @@ def ime_mode(hwnd: int | None = None) -> str | None:
     layout = user32.GetKeyboardLayout(tid) or 0
     if (layout & 0xFFFF) != LANG_KOREAN:
         return None
+    # 바깥 창이 아니라 실제 입력 중인 칸에 물어봐야 함. Windows 11 메모장(TSF)처럼
+    # 바깥 창의 IME는 한/영을 바꿔도 그대로인 프로그램이 있음
+    info = GUITHREADINFO(cbSize=ctypes.sizeof(GUITHREADINFO))
+    if user32.GetGUIThreadInfo(tid, ctypes.byref(info)) and info.hwndFocus:
+        hwnd = info.hwndFocus
     ime = imm32.ImmGetDefaultIMEWnd(hwnd)
     if not ime:
         return None
