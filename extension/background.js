@@ -4,7 +4,7 @@ const DEFAULTS = { enabled: true, disabledSites: [] };
 const readList = (file) =>
   fetch(chrome.runtime.getURL(file))
     .then((r) => r.text())
-    .then((t) => t.split('\n').filter(Boolean));
+    .then((t) => t.split(/\r?\n/).filter(Boolean));
 
 let dictPromise = null;
 function loadDict() {

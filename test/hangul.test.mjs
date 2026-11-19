@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 await import('../extension/hangul.js');
 const { engToHangul, hangulToEng, decide } = globalThis.HanYoung;
 
-const list = (f) => readFileSync(new URL(`../extension/${f}`, import.meta.url), 'utf8').split('\n').filter(Boolean);
+const list = (f) => readFileSync(new URL(`../extension/${f}`, import.meta.url), 'utf8').split(/\r?\n/).filter(Boolean);
 const sorted = list('words.txt');
 const all = new Set(sorted);
 const common = new Set(list('common.txt'));
