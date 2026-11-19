@@ -223,5 +223,101 @@ class EngineTest(unittest.TestCase):
         self.assertEqual(h.notes[0][:2], ('dkssud', '안녕'))
 
 
+class ContextTest(unittest.TestCase):
+    """문맥 교정: 뒤 단어가 교정될 때 혼자서는 건너뛴 앞의 짧은 단어도 함께"""
+
+    def test_short_english_words_fixed_with_next_word(self):
+        h = Harness(KO)
+        h.type('go to job ')
+        self.assertEqual(h.ime.screen, 'go to job ')
+        self.assertEqual(h.ime.mode, EN)
+        self.assertEqual(h.notes[0][:2], ('해 새 ㅓㅐㅠ', 'go to job'))
+
+    def test_short_words_alone_untouched(self):
+        h = Harness(KO)
+        h.type('go to ')
+        self.assertEqual(h.ime.screen, '해 새 ')
+
+    def test_only_adjacent_words_that_qualify(self):
+        h = Harness(KO)
+        h.type('dkssud go job ')   # 안녕(진짜 한글)은 그대로, go만 함께
+        self.assertEqual(h.ime.screen, '안녕 go job ')
+
+    def test_context_stops_at_punctuation_or_enter(self):
+        h = Harness(KO)
+        h.type('go. job ')
+        self.assertEqual(h.ime.screen, '해. job ')
+
+    def test_english_mode_short_korean_with_next_word(self):
+        h = Harness(EN, check_length=30)
+        h.type('sk dkssud ')
+        self.assertEqual(h.ime.screen, '나 안녕 ')
+        self.assertEqual(h.ime.mode, KO)
+
+    def test_undo_context_fix(self):
+        h = Harness(KO)
+        h.type('go to job ')
+        h.key(0x5A, ctrl=True)
+        self.assertEqual(h.ime.screen, '해 새 ㅓㅐㅠ ')
+        self.assertEqual(h.ime.mode, KO)
+        self.assertIn('ㅓㅐㅠ', h.engine.settings.user_words)
+
+
+class RetypeTest(unittest.TestCase):
+    """고친 단어를 지우고 원래 모드로 다시 쓰면 일부러 쓴 것으로 보고 그대로 둠"""
+
+    def test_retype_after_erasing_is_kept_and_learned(self):
+        h = Harness(KO)
+        h.type('hello ')
+        self.assertEqual(h.ime.screen, 'hello ')
+        for _ in range(6):
+            h.key(0x08)
+        h.key(0x15)                    # 한/영을 원래대로
+        h.type('hello ')
+        self.assertEqual(h.ime.screen, 'ㅗ디ㅣㅐ ')
+        self.assertIn('ㅗ디ㅣㅐ', h.engine.settings.user_words)
+        h.type('hello ')               # 배웠으므로 다음에도 그대로
+        self.assertEqual(h.ime.screen, 'ㅗ디ㅣㅐ ㅗ디ㅣㅐ ')
+
+    def test_repeating_same_mistake_without_erasing_is_fixed(self):
+        h = Harness(KO)
+        h.type('hello ')
+        h.key(0x15)
+        h.type('hello ')
+        self.assertEqual(h.ime.screen, 'hello hello ')
+        self.assertEqual(h.engine.settings.user_words, [])
+
+    def test_retype_long_word_skips_mid_word_fix(self):
+        h = Harness(EN)
+        h.type('dkssudgktpdy ')
+        self.assertEqual(h.ime.screen, '안녕하세요 ')
+        for _ in range(6):
+            h.key(0x08)
+        h.key(0x15)
+        h.type('dkssudgktpdy ')
+        self.assertEqual(h.ime.screen, 'dkssudgktpdy ')
+
+    def test_retype_after_window_expires_is_fixed(self):
+        h = Harness(KO)
+        t = [0.0]
+        h.engine.clock = lambda: t[0]
+        h.type('hello ')
+        for _ in range(6):
+            h.key(0x08)
+        h.key(0x15)
+        t[0] = 120.0
+        h.type('hello ')
+        self.assertEqual(h.ime.screen, 'hello ')
+
+    def test_retyped_word_not_used_as_context(self):
+        h = Harness(KO)
+        h.type('go to job ')
+        for _ in range(10):
+            h.key(0x08)
+        h.key(0x15)
+        h.type('go to job ')           # 전체를 다시 씀 → 모두 그대로
+        self.assertEqual(h.ime.screen, '해 새 ㅓㅐㅠ ')
+
+
 if __name__ == '__main__':
     unittest.main()

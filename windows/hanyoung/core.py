@@ -189,3 +189,35 @@ def decide(token: str, d: Dictionary, mid_word: bool = False, min_length: int = 
             return lower
         return None
     return None
+
+
+# 한 글자 영어 단어 (사전에는 2글자 이상만 있음)
+ONE_LETTER_WORDS = {'a', 'i'}
+
+
+def decide_context(token: str, d: Dictionary, to_english: bool) -> str | None:
+    """바로 뒤 단어가 같은 방향으로 교정될 때, 앞의 단어도 함께 고칠지 판단 (문맥 교정)
+
+    혼자서는 너무 짧거나 애매해서 건너뛴 단어(예: 한글 모드로 친 go → '해')를,
+    뒤 단어(job)가 영어로 교정되는 문맥에서만 함께 고칩니다.
+    - to_english: 화면의 한글 token을 영어로. 영어로 바꾼 결과가 흔한 영어 단어일 때만
+    - 아니면: 화면의 영문 token을 한글로. 영어 단어가 아니고 온전한 한글 글자로 조합될 때만
+    """
+    if not token or token.lower() in d.user_words:
+        return None
+    if to_english:
+        if not _all_hangul(token):
+            return None
+        eng = hangul_to_eng(token)
+        if not _all_ascii_letters(eng):
+            return None
+        lower = eng.lower()
+        return lower if lower in ONE_LETTER_WORDS or d.is_common(lower) else None
+    if not _all_ascii_letters(token):
+        return None
+    if any('A' <= c <= 'Z' and c not in SHIFT_KEYS for c in token):
+        return None
+    if token.lower() in ONE_LETTER_WORDS or d.is_word(token.lower()):
+        return None
+    hangul = eng_to_hangul(token)
+    return hangul if all(is_syllable(c) for c in hangul) else None

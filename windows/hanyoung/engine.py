@@ -14,7 +14,7 @@ import threading
 import time
 from dataclasses import dataclass, field
 
-from .core import Dictionary, decide, eng_to_hangul, ime_keys
+from .core import Dictionary, decide, decide_context, eng_to_hangul, ime_keys
 
 KO, EN = 'ko', 'en'
 
@@ -33,6 +33,8 @@ VK_1 = 0x31  # Shift+1 = !
 WORD_BLOCKING_VKS = set(range(0x30, 0x3A)) | set(range(0x60, 0x70)) | {0xBD, 0xBB, 0xDB, 0xDD, 0xDC, 0xC0}
 
 UNDO_WINDOW = 6.0  # 초
+CONTEXT_WORDS = 3   # 문맥 교정 때 함께 볼 앞 단어 수
+RETYPE_WINDOW = 60.0  # 초: 고친 단어를 이 시간 안에 같은 모드로 다시 치면 일부러 쓴 것으로 보고 그대로 둠
 
 
 @dataclass(frozen=True)
@@ -105,6 +107,14 @@ class _Fix:
     after: str           # 고친 단어
     boundary: Key | None
     time: float
+    learn: str = ''      # 되돌렸을 때 '고치지 않을 단어'로 배울 단어 (문맥 교정이면 마지막 단어만)
+
+
+@dataclass
+class _Word:
+    """띄어쓰기로 끝났지만 교정하지 않은 단어 (문맥 교정용)"""
+    keys: list[Key]
+    mode: str
 
 
 class Engine:
@@ -123,6 +133,10 @@ class Engine:
         self.keys: list[Key] = []
         self.blocked = False       # 숫자 등이 섞여 이번 단어는 검사하지 않음
         self.word_fixed = False    # 이번 단어는 이미 고쳤음 (이어서 치는 중)
+        self.word_kept = False     # 이번 단어는 고쳤던 단어를 다시 친 것: 그대로 둠
+        self.history: list[_Word] = []  # 바로 앞에 띄어쓰기로 이어 친 단어들 (오래된 순)
+        self.recent: list[tuple[str, str, float]] = []  # 최근에 고친 (키, 원래 모드, 시각)
+        self.erased = False        # 마지막 교정 뒤에 백스페이스로 지운 적이 있는지
         self.window = None
         self.last_fix: _Fix | None = None
         self.keys_since_fix = 0
@@ -136,14 +150,44 @@ class Engine:
         self.keys = []
         self.blocked = False
         self.word_fixed = False
+        self.word_kept = False
 
     def _keystr(self) -> str:
         return ''.join(k.char for k in self.keys)
 
+    @staticmethod
+    def _show(keys: list[Key], mode: str) -> str:
+        """keys를 mode로 쳤을 때 화면에 보이는 단어"""
+        s = ''.join(k.char for k in keys)
+        return s if mode == EN else eng_to_hangul(ime_keys(s))
+
     def _displayed(self, mode: str) -> str:
         """지금 화면에 보이는 단어"""
-        s = self._keystr()
-        return s if mode == EN else eng_to_hangul(ime_keys(s))
+        return self._show(self.keys, mode)
+
+    # ---------- 다시 쓰면 그대로 두기 ----------
+    def _retyped(self, keys: list[Key], mode: str, prefix: bool = False) -> bool:
+        """고친 지 얼마 안 된 단어를 원래 모드 그대로 다시 쳤는지 (prefix: 치는 중인 앞부분)"""
+        if not self.erased:
+            return False  # 지우지 않고 또 친 것은 같은 실수를 반복한 것으로 봄
+        now = self.clock()
+        self.recent = [r for r in self.recent if now - r[2] < RETYPE_WINDOW]
+        s = ''.join(k.char for k in keys).lower()
+        for k, m, _ in self.recent:
+            if m == mode and (k == s or (prefix and (k.startswith(s) or s.startswith(k)))):
+                return True
+        return False
+
+    def _keep(self, word: str):
+        """일부러 쓴 단어: 앞으로 고치지 않도록 배움"""
+        word = word.lower()
+        if word in self.dict.user_words:
+            return
+        self.settings.user_words.append(word)
+        self.dict.user_words.add(word)
+        self.on_learn(word)
+        if self.settings.show_toast:
+            self.notify(None, None, f"다시 쓰셔서 '{word}'은(는) 그대로 둘게요")
 
     # ---------- 이벤트 ----------
     def handle(self, ev: KeyEvent) -> bool:
@@ -166,6 +210,7 @@ class Engine:
         with self.lock:
             if not self.busy:
                 self.reset()
+                self.history = []
                 self.last_fix = None
 
     def _key_down(self, ev: KeyEvent) -> bool:
@@ -179,35 +224,46 @@ class Engine:
             return False
         if not s.enabled or ev.password or ev.app in s.excluded_apps:
             self.reset()
+            self.history = []
             return False
         if ev.window != self.window:
             self.window = ev.window
             self.reset()
+            self.history = []
+            self.recent = []
             self.last_fix = None
 
         if ev.ctrl and not ev.alt and not ev.win and ev.vk == VK_Z and self._can_undo():
             self._start(self._undo)
             return True
         if ev.ctrl or ev.alt or ev.win:
+            if ev.ctrl and ev.vk == VK_BACK:
+                self.erased = True
             self.reset()
+            self.history = []
             return False
         if ev.vk in (VK_HANGUL, VK_HANJA):
             self.reset()
+            self.history = []
             self.last_fix = None
             return False
 
         if 0x41 <= ev.vk <= 0x5A:
             if ev.caps:
                 self.reset()
+                self.history = []
                 return False
             self.keys.append(Key(ev.vk, ev.shift))
             self.keys_since_fix += 1
-            if not self.blocked and not self.word_fixed and len(self.keys) >= s.check_length:
+            if not self.blocked and not self.word_fixed and not self.word_kept and len(self.keys) >= s.check_length:
                 self._check_mid_word()
             return False  # 글자는 그대로 전달 (교정은 전달된 뒤에 실행)
         if ev.vk == VK_BACK:
             if self.keys:
                 self.keys.pop()
+            else:
+                self.history = []  # 앞 단어와의 띄어쓰기를 지웠을 수 있음
+            self.erased = True
             self.keys_since_fix += 1
             return False
         if ev.vk in BOUNDARY_VKS or (ev.shift and ev.vk == VK_1):
@@ -215,9 +271,11 @@ class Engine:
         if ev.vk in WORD_BLOCKING_VKS:
             self.keys = []
             self.blocked = True
+            self.history = []
             return False
         # 방향키, Tab, Esc, Delete, F키 등: 단어가 끊김
         self.reset()
+        self.history = []
         self.last_fix = None
         return False
 
@@ -227,6 +285,9 @@ class Engine:
         mode = self.p.get_mode()
         if mode != EN:
             return
+        if self._retyped(self.keys, mode, prefix=True):
+            self.word_kept = True
+            return
         fixed = decide(self._keystr(), self.dict, mid_word=True)
         if fixed:
             keys = list(self.keys)
@@ -234,21 +295,49 @@ class Engine:
 
     def _check_boundary(self, ev: KeyEvent) -> bool:
         keys = list(self.keys)
+        plain_space = ev.vk == VK_SPACE and not ev.shift
         if not keys or self.blocked or self.word_fixed:
             self.reset()
+            self.history = []
             return False
         mode = self.p.get_mode()
         if mode is None:
             self.reset()
+            self.history = []
             return False
         token = self._displayed(mode)
+        if self.word_kept or self._retyped(keys, mode):
+            # 고쳤던 단어를 같은 모드로 다시 침 → 일부러 쓴 것
+            self._keep(token)
+            self.reset()
+            self.history = []
+            return False
         fixed = decide(token, self.dict)
         if not fixed:
             self.reset()
+            if plain_space:
+                self.history = (self.history + [_Word(keys, mode)])[-CONTEXT_WORDS:]
+            else:
+                self.history = []
             return False
+        context = self._context(mode)
+        self.history = []
         boundary = Key(ev.vk, ev.shift)
-        self._start(lambda: self._fix(mode, keys, fixed, boundary, mid=False, boundary_ev=ev))
+        self._start(lambda: self._fix(mode, keys, fixed, boundary, mid=False, boundary_ev=ev, context=context))
         return True  # 띄어쓰기/Enter는 교정 뒤에 보냄
+
+    def _context(self, mode: str) -> list:
+        """이번 단어와 같은 모드로 바로 앞에 친 단어 중 함께 고칠 단어들 (가까운 것부터 끊김 없이)"""
+        out = []
+        for w in reversed(self.history):
+            if w.mode != mode or self._retyped(w.keys, mode):
+                break
+            fixed = decide_context(self._show(w.keys, mode), self.dict, to_english=(mode == KO))
+            if not fixed:
+                break
+            out.append((w, fixed))
+        out.reverse()
+        return out
 
     # ---------- 실행 ----------
     def _can_undo(self) -> bool:
@@ -275,24 +364,39 @@ class Engine:
                     return
             self.p.replay(pending)
 
-    def _fix(self, mode, keys, fixed, boundary, mid, boundary_ev=None):
+    def _fix(self, mode, keys, fixed, boundary, mid, boundary_ev=None, context=()):
         p = self.p
-        before = ''.join(k.char for k in keys)
+        word_before = self._show(keys, mode)
+        # 문맥 교정: 앞 단어들과 띄어쓰기까지 한꺼번에 지우고 다시 침
+        space = Key(VK_SPACE)
+        all_keys, befores, afters = [], [], []
+        for w, w_fixed in context:
+            all_keys += w.keys + [space]
+            befores.append(self._show(w.keys, mode))
+            afters.append(w_fixed)
+        all_keys += keys
+        before = ' '.join(befores + [word_before])
+        after = ' '.join(afters + [fixed])
         if mode == EN:
             # 화면: 영문 그대로 → 지우고, 한글로 바꾸고, 같은 키를 다시 누름 (IME가 조합)
-            p.send_backspace(len(keys))
+            p.send_backspace(len(before))
             p.send_toggle()
-            p.send_keys(keys)
+            p.send_keys(all_keys)
         else:
-            before = eng_to_hangul(ime_keys(before))
             # 화면: 조합 중인 한글 → 전환하면 조합이 확정되므로 먼저 전환한 뒤 지움
             p.send_toggle()
             p.send_backspace(len(before))
-            p.send_keys(keys)
+            p.send_keys(all_keys)
         with self.lock:
             # Enter로 이미 보냈을 수 있는 글은 되돌리지 않음
             undoable = not (boundary and boundary.vk == VK_RETURN)
-            self.last_fix = _Fix(mode, keys, before, fixed, boundary, self.clock()) if undoable else None
+            self.last_fix = (_Fix(mode, all_keys, before, after, boundary, self.clock(), learn=word_before)
+                             if undoable else None)
+            now = self.clock()
+            for w, _ in context:
+                self.recent.append((''.join(k.char for k in w.keys).lower(), mode, now))
+            self.recent.append((''.join(k.char for k in keys).lower(), mode, now))
+            self.erased = False
             self.keys_since_fix = 0
             if mid:
                 self.word_fixed = True   # 이어서 치는 글자는 새 모드로 그대로
@@ -301,7 +405,7 @@ class Engine:
             if boundary_ev is not None:
                 self.queue.insert(0, KeyEvent(**{**boundary_ev.__dict__, 'source': 'user'}))
         if self.settings.show_toast:
-            self.notify(before, fixed)
+            self.notify(before, after)
 
     def _undo(self):
         f = self.last_fix
@@ -317,7 +421,7 @@ class Engine:
             p.send_backspace(len(f.keys) + len(extra))
             p.send_toggle()
             p.send_keys(f.keys + extra)
-        word = f.before.lower()
+        word = (f.learn or f.before).lower()
         with self.lock:
             self.last_fix = None
             self.reset()
@@ -326,4 +430,4 @@ class Engine:
                 self.dict.user_words.add(word)
         self.on_learn(word)
         if self.settings.show_toast:
-            self.notify(None, None, f"'{f.before}'은(는) 앞으로 고치지 않을게요")
+            self.notify(None, None, f"'{f.learn or f.before}'은(는) 앞으로 고치지 않을게요")
