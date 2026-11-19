@@ -291,7 +291,9 @@ class Engine:
         fixed = decide(self._keystr(), self.dict, mid_word=True)
         if fixed:
             keys = list(self.keys)
-            self._start(lambda: self._fix(EN, keys, fixed, None, mid=True))
+            context = self._context(mode)  # 앞의 짧은 단어도 함께 (예: sk dkssud → 나 안녕)
+            self.history = []
+            self._start(lambda: self._fix(EN, keys, fixed, None, mid=True, context=context))
 
     def _check_boundary(self, ev: KeyEvent) -> bool:
         keys = list(self.keys)

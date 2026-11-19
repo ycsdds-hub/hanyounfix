@@ -137,7 +137,7 @@
   }
 
   // ---------- 교정 ----------
-  const lastFix = new WeakMap(); // el → { contAt, original, fixed, time }
+  const lastFix = new WeakMap(); // el → { contAt, start, original, fixed, learn, time }
   let composing = false;
   let afterComposition = [];
 
@@ -146,11 +146,79 @@
     return !!f && f.contAt === tok.start && Date.now() - f.time < 10000;
   }
 
+  // ---------- 다시 쓰면 그대로 두기 ----------
+  // 고친 단어를 지우고 RETYPE_MS 안에 똑같이 다시 쓰면 일부러 쓴 것으로 보고 그대로 둠
+  const RETYPE_MS = 60000;
+  const recentFixes = new WeakMap(); // el → [{ w: 고치기 전 단어(소문자), t }]
+  const erased = new WeakMap();      // el → 마지막 교정 뒤에 지운 적이 있는지
+
+  function retyped(el, token, prefix = false) {
+    if (!erased.get(el)) return false; // 지우지 않고 또 친 것은 같은 실수를 반복한 것으로 봄
+    const now = Date.now();
+    const list = (recentFixes.get(el) || []).filter((r) => now - r.t < RETYPE_MS);
+    recentFixes.set(el, list);
+    const w = token.toLowerCase();
+    return list.some((r) => r.w === w || (prefix && (r.w.startsWith(w) || w.startsWith(r.w))));
+  }
+
+  function rememberFix(el, words, replaceLast) {
+    const list = recentFixes.get(el) || [];
+    if (replaceLast && list.length) list.pop();
+    const t = Date.now();
+    for (const w of words) list.push({ w: w.toLowerCase(), t });
+    recentFixes.set(el, list);
+    erased.set(el, false);
+  }
+
+  function learnWord(word, message) {
+    const w = word.toLowerCase();
+    if (userWords.has(w)) return;
+    userWords.add(w);
+    chrome.storage.sync.set({ userWords: [...settings.userWords, w] });
+    toast(null, null, message);
+  }
+
+  // ---------- 문맥 교정 ----------
+  const CONTEXT_WORDS = 3;
+  const SPACE = /^[  ]$/;
+
+  /**
+   * start 바로 앞에 띄어쓰기 하나씩으로 이어진 단어 중, 이번 교정과 같은 방향으로 함께 고칠 단어들.
+   * 혼자서는 건너뛴 짧은 단어(한글 모드로 친 go → '해')를 뒤 단어(job)가 고쳐질 때 같이 고침.
+   */
+  function contextBefore(el, text, start, toEnglish) {
+    const out = [];
+    let pos = start;
+    for (let i = 0; i < CONTEXT_WORDS; i++) {
+      // contenteditable은 띄어쓰기를 &nbsp;(U+00A0)로 넣기도 함
+      if (!SPACE.test(text[pos - 1] || '') || SPACE.test(text[pos - 2] || '')) break;
+      const t = findToken(text, pos - 1);
+      if (!t) break;
+      const lower = t.token.toLowerCase();
+      if (userWords.has(lower) || retyped(el, t.token)) break;
+      // 영문 → 한글은 '영어 단어가 아님'을 확인해야 하므로 사전 결과가 꼭 있어야 함
+      if (!toEnglish && !cache.has(lower)) break;
+      const fixed = HY.decideContext(t.token, dict, toEnglish);
+      if (!fixed) break;
+      out.unshift({ start: t.start, token: t.token, fixed });
+      pos = t.start;
+    }
+    return out;
+  }
+
   /** 동기적으로 판단 가능하면 바로 고치고 true */
   function tryFix(ctx, tok, { midWord = false } = {}) {
     const cont = isContinuation(ctx.el, tok);
+    if (!cont && retyped(ctx.el, tok.token, midWord)) {
+      // 고쳤던 단어를 지우고 다시 씀 → 일부러 쓴 것
+      if (!midWord) learnWord(tok.token, `다시 쓰셔서 ‘${tok.token}’은(는) 그대로 둘게요`);
+      return true;
+    }
     // 길이 제한은 decide()가 키 개수로 판단 (한글 2글자도 키는 4개 이상일 수 있음)
-    if (!cont && tok.token.length < 2) return true;
+    if (!cont && tok.token.length < 2) {
+      lookup(candidates(tok.token)); // 뒤 단어가 고쳐질 때 문맥 교정에 쓰도록 미리 조회
+      return true;
+    }
     const fixed = judge(tok, cont, midWord);
     if (fixed === undefined) return false;
     if (!fixed) return true;
@@ -158,24 +226,37 @@
     let { start, end } = tok;
     let replacement = fixed;
     let contAt = null;
+    let context = [];
     if (midWord) {
       // 아직 치고 있는 마지막 글자는 남겨 두고 앞부분만 교정
       const last = [...fixed].pop();
       end = tok.end - HY.hangulToEng(last).length;
       replacement = fixed.slice(0, -1);
       if (end <= start || !replacement) return true;
-      contAt = start + replacement.length;
     }
-    const original = tok.token.slice(0, end - start);
+    if (!cont) {
+      // 문맥 교정: 앞의 짧은 단어도 같은 방향으로 함께 (띄어쓰기 전 중간 교정 포함)
+      context = contextBefore(ctx.el, ctx.text, tok.start, /^[A-Za-z]+$/.test(fixed));
+      if (context.length) {
+        start = context[0].start;
+        replacement = [...context.map((w) => w.fixed), replacement].join(' ');
+      }
+    }
+    if (midWord) contAt = start + replacement.length;
+    const word = tok.token.slice(0, end - tok.start);
+    const original = ctx.text.slice(start, end);
     replaceRange(ctx, start, end, replacement);
     // 이어서 친 글자를 고친 경우에도 되돌리기 학습은 단어 전체(처음 원문)를 기준으로
     const prev = cont ? lastFix.get(ctx.el) : null;
+    const learn = prev ? prev.learn + word : word;
     lastFix.set(ctx.el, {
       contAt, start: prev ? prev.start : start,
       original: prev ? prev.original + original : original,
       fixed: prev ? prev.fixed + replacement : replacement,
+      learn,
       time: Date.now(),
     });
+    rememberFix(ctx.el, [...context.map((w) => w.token), learn], !!prev);
     if (!cont) toast(original, replacement);
     return true;
   }
@@ -212,12 +293,16 @@
   window.addEventListener('input', (e) => {
     if (selfEdit || e.isComposing || !active()) return;
     const el = editableOf(e.target);
+    if (el && e.inputType?.startsWith('delete')) erased.set(el, true);
     if (!el || e.inputType !== 'insertText' || !e.data) return;
     const ctx = readContext(el);
     if (!ctx) return;
 
     if (BOUNDARY.test(e.data)) {
-      checkAsync(el, ctx.caret - e.data.length);
+      // contenteditable에서는 끝에 친 띄어쓰기 직후 커서가 띄어쓰기 앞으로 보고될 때가 있음 →
+      // 커서 바로 앞이 경계 문자일 때만 그만큼 빼서 단어 끝을 찾음
+      const end = ctx.caret > 0 && BOUNDARY.test(ctx.text[ctx.caret - 1]) ? ctx.caret - 1 : ctx.caret;
+      checkAsync(el, end);
       return;
     }
     const tok = findToken(ctx.text, ctx.caret);
@@ -242,11 +327,8 @@
       const stillThere = ctx && ctx.text.slice(f.start, f.start + f.fixed.length) === f.fixed;
       if (f && stillThere && Date.now() - f.time < 8000) {
         lastFix.delete(el);
-        const word = f.original.toLowerCase();
-        if (!userWords.has(word)) {
-          chrome.storage.sync.set({ userWords: [...settings.userWords, word] });
-          toast(null, null, `‘${f.original}’은(는) 앞으로 고치지 않을게요`);
-        }
+        // 문맥 교정으로 함께 고친 경우에도 배우는 것은 마지막 단어만
+        learnWord(f.learn || f.original, `‘${f.learn || f.original}’은(는) 앞으로 고치지 않을게요`);
       }
       return;
     }

@@ -11,8 +11,8 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
       - run: npm ci
@@ -22,7 +22,7 @@ jobs:
         run: python3 -m unittest discover -s windows/tests -v
       - name: 확장 프로그램 zip 만들기
         run: cd extension && zip -r ../hanyoung-fix-extension.zip . -x '.*'
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: hanyoung-fix-extension
           path: hanyoung-fix-extension.zip
@@ -30,8 +30,8 @@ jobs:
   windows-app:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
       - name: 패키지 설치
@@ -51,12 +51,12 @@ jobs:
           if ($p.HasExited) { Get-Content "$env:APPDATA\HanYoungFix\log.txt" -ErrorAction SilentlyContinue; throw "exe가 바로 종료됨 (코드 $($p.ExitCode))" }
           Stop-Process $p
           Get-Content "$env:APPDATA\HanYoungFix\log.txt" -ErrorAction SilentlyContinue
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: HanYoungFix-windows
           path: windows/dist/HanYoungFix.exe
       - name: 릴리스에 첨부 (v로 시작하는 태그일 때)
         if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: windows/dist/HanYoungFix.exe

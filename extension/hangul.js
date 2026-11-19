@@ -161,5 +161,36 @@
     return null;
   }
 
-  root.HanYoung = { engToHangul, hangulToEng, decide, isSyllable, isJamo };
+  // 한 글자 영어 단어 (사전에는 2글자 이상만 있음)
+  const ONE_LETTER_WORDS = new Set(['a', 'i']);
+
+  /**
+   * 문맥 교정: 바로 뒤 단어가 같은 방향으로 교정될 때 앞의 단어도 함께 고칠지 판단합니다.
+   * 혼자서는 너무 짧거나 애매해서 건너뛴 단어(한글 모드로 친 go → '해')를,
+   * 뒤 단어(job)가 영어로 교정되는 문맥에서만 함께 고칩니다. (windows/hanyoung/core.py decide_context와 동일)
+   * @param {string} token
+   * @param {{isWord: Function, isCommon?: Function}} dict
+   * @param {boolean} toEnglish  true: 한글 token을 영어로, false: 영문 token을 한글로
+   * @returns {string|null}
+   */
+  function decideContext(token, dict, toEnglish) {
+    const isWord = dict.isWord;
+    const isCommon = dict.isCommon || dict.isWord;
+    if (!token) return null;
+    if (toEnglish) {
+      if (!/^[가-힣ㄱ-ㅣ]+$/.test(token)) return null;
+      const eng = hangulToEng(token);
+      if (!/^[A-Za-z]+$/.test(eng)) return null;
+      const lower = eng.toLowerCase();
+      return ONE_LETTER_WORDS.has(lower) || isCommon(lower) ? lower : null;
+    }
+    if (!/^[A-Za-z]+$/.test(token)) return null;
+    if ([...token].some((c) => c >= 'A' && c <= 'Z' && !SHIFT_KEYS.has(c))) return null;
+    const lower = token.toLowerCase();
+    if (ONE_LETTER_WORDS.has(lower) || isWord(lower)) return null;
+    const hangul = engToHangul(token);
+    return [...hangul].every(isSyllable) ? hangul : null;
+  }
+
+  root.HanYoung = { engToHangul, hangulToEng, decide, decideContext, isSyllable, isJamo };
 })(typeof globalThis !== 'undefined' ? globalThis : this);

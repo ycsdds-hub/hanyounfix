@@ -51,6 +51,13 @@ test('6글자 중간 검사: 7자 이상 영어 단어를 앞부분에서 잘못
   assert.deepEqual(bad.slice(0, 10), []);
 });
 
+test('문맥 교정 공통 사례 (cases.json)', () => {
+  const { decideContext } = globalThis.HanYoung;
+  for (const [token, toEnglish, expect] of cases.context) {
+    assert.equal(decideContext(token, dict, toEnglish), expect, `${token} toEnglish=${toEnglish}`);
+  }
+});
+
 test('예전 호출 방식(함수 하나)도 동작', () => {
   assert.equal(decide('dkssud', (w) => all.has(w)), '안녕');
 });

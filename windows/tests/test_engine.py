@@ -254,6 +254,13 @@ class ContextTest(unittest.TestCase):
         self.assertEqual(h.ime.screen, '나 안녕 ')
         self.assertEqual(h.ime.mode, KO)
 
+    def test_context_with_mid_word_fix(self):
+        h = Harness(EN)                # 기본 6글자 중간 교정에서도 앞 단어를 함께
+        h.type('sk dkssud')
+        self.assertEqual(h.ime.screen, '나 안녕')
+        h.type('gktpdy ')
+        self.assertEqual(h.ime.screen, '나 안녕하세요 ')
+
     def test_undo_context_fix(self):
         h = Harness(KO)
         h.type('go to job ')

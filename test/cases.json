@@ -56,5 +56,22 @@
     ["오늘", false, null],
     ["안녕hi", false, null],
     ["gk", false, null]
+  ],
+  "_comment_context": "context: [token, toEnglish, expect] 뒤 단어가 같은 방향으로 교정될 때 앞 단어도 함께 고칠지",
+  "context": [
+    ["해", true, "go"],
+    ["새", true, "to"],
+    ["ㅑㄴ", true, "is"],
+    ["ㅁ", true, "a"],
+    ["안녕", true, null],
+    ["ㅋㅋ", true, null],
+    ["hello", true, null],
+    ["sk", false, "나"],
+    ["rk", false, "가"],
+    ["eh", false, null],
+    ["ok", false, null],
+    ["a", false, null],
+    ["Ab", false, null],
+    ["해", false, null]
   ]
 }
