@@ -28,7 +28,8 @@
 - [x] `requirements-mac.txt`, `tests/smoke_mac.py`, `build_mac.sh` 작성
 - [x] `build.bat` 에 Mac 모듈 제외 옵션, CI 경로 `windows/` → `app/` 수정, CI에 macOS 작업 추가 (테스트·스모크·.app 빌드·8초 실행 확인·zip 업로드)
 - [x] `gh workflow run CI --ref mac-app` 으로 Mac CI 확인 → 첫 실행에서 테스트·스모크·빌드·8초 실행 모두 통과 (러너는 권한이 이미 허용됨)
-- [ ] CI에 실제 타이핑 확인 추가 (`app/tests/e2e_mac.py`: 한국어 두벌식 켜고 TextEdit에 dkssud 등 입력 후 결과 읽기) → 실행 44647270163 결과 확인 (`gh run view 44647270163 --log` 에서 OK/FAIL 줄), 실패하면 고치기
+- [ ] CI에 실제 타이핑 확인 추가 (`app/tests/e2e_mac.py`: 한국어 두벌식 켜고 TextEdit에 dkssud 등 입력 후 결과 읽기) → 실행 44647270163: 5개 모두 빈 결과, 22분 걸림. 원인: TextEdit을 AppleScript로 읽다 자동화 권한 창에 막힘 (앱 문제 아님)
+  → 테스트가 직접 띄운 창(NSTextView)에 치고 바로 읽도록 바꿈, 단계 제한 10분 → 다시 실행해 확인
 - [x] Windows exe 다시 빌드해 바탕화면 교체 (09:35, 정상 실행)
 - [x] README에 Mac 설치·권한·한계 추가, 폴더 구조 app/ 반영
 - [ ] main에 합치고 푸시, Obsidian 노트 기록 (`Claude/2026-11-20 ...`)

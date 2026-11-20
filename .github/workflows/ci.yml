@@ -86,12 +86,13 @@ jobs:
           kill $PID || true
           cat "$LOG" 2>/dev/null || true
           if grep -q "Traceback" "$LOG" 2>/dev/null; then echo "로그에 오류가 있음"; exit 1; fi
-      - name: 실제 타이핑 확인 (TextEdit, 한국어 두벌식)
+      - name: 실제 타이핑 확인 (한국어 두벌식, 테스트 창)
+        timeout-minutes: 10
         run: |
           app/dist/HanYoungFix.app/Contents/MacOS/HanYoungFix &
           PID=$!
           sleep 5
-          python app/tests/e2e_mac.py || RC=$?
+          python -u app/tests/e2e_mac.py || RC=$?
           kill $PID || true
           cat "$HOME/Library/Application Support/HanYoungFix/log.txt" 2>/dev/null | tail -20 || true
           exit ${RC:-0}
