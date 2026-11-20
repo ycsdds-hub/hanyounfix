@@ -26,6 +26,7 @@ mac._carbon.TISEnableInputSource.restype = ctypes.c_int32
 mac._carbon.TISEnableInputSource.argtypes = [ctypes.c_void_p]
 
 CASES = [
+    ('en', 'rkawk ', None),                   # 준비 운동: 앱이 새로 켠 한국어 입력 소스를 알아차리게 (채점 안 함)
     ('en', 'dkssud ', '안녕 '),               # 6글자 중간 교정 + 한/영 전환
     ('en', 'rkawk ', '감자 '),                # 띄어쓰기에서 교정
     ('ko', 'hello ', 'hello '),               # 한글 모드로 친 영어
@@ -101,10 +102,30 @@ def run_cases(app, win, tv):
                 print(f'FAIL 입력 소스를 {mode}로 못 바꿈: {sid}')
                 fails += 1
                 continue
+            # 교정 중 화면이 어떻게 바뀌는지 0.03초마다 기록 (실패 원인 분석용)
+            trace, stop = [], threading.Event()
+
+            def sample():
+                last = None
+                while not stop.is_set():
+                    cur = str(mac.on_main(lambda: tv.string(), timeout=0.2) or '')
+                    if cur != last:
+                        trace.append(cur)
+                        last = cur
+                    time.sleep(0.03)
+            th = threading.Thread(target=sample, daemon=True)
+            th.start()
             type_keys(keys)
             time.sleep(1.5)
+            stop.set()
+            th.join(1)
             got = str(mac.on_main(lambda: tv.string()) or '')
+            if want is None:
+                print(f'준비 [{mode}] {keys!r} -> {got!r}')
+                continue
             ok = got == want
+            if not ok:
+                print('   화면 변화:', ' → '.join(repr(t) for t in trace))
             fails += not ok
             print(f'{"OK  " if ok else "FAIL"} [{mode}] {keys!r} -> {got!r} (기대 {want!r})')
     except Exception as e:  # noqa: BLE001
