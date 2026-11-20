@@ -142,18 +142,24 @@ def has_permissions(prompt=False) -> dict[str, bool]:
 _nudge_win = None
 
 
-def focus_nudge_begin():
-    """메인 스레드: 우리 앱의 보이지 않는 창을 잠깐 앞으로. 원래 앞에 있던 앱을 돌려줌"""
+def _ensure_nudge_window():
+    """보이지 않는 창을 미리 만들어 둠 (처음 만들 때 늦어 첫 교정에서 글자가 먼저 들어가던 문제: 'rㅏㅁ자')"""
     global _nudge_win
-    from AppKit import (NSApplication, NSBackingStoreBuffered, NSMakeRect, NSWindow,
-                        NSWindowStyleMaskTitled)
-    prev = NSWorkspace.sharedWorkspace().frontmostApplication()
     if _nudge_win is None:
+        from AppKit import NSBackingStoreBuffered, NSMakeRect, NSWindow, NSWindowStyleMaskTitled
         w = NSWindow.alloc().initWithContentRect_styleMask_backing_defer_(
             NSMakeRect(-10000, -10000, 1, 1), NSWindowStyleMaskTitled, NSBackingStoreBuffered, False)
         w.setAlphaValue_(0.0)
         w.setReleasedWhenClosed_(False)
         _nudge_win = w
+    return _nudge_win
+
+
+def focus_nudge_begin():
+    """메인 스레드: 우리 앱의 보이지 않는 창을 잠깐 앞으로. 원래 앞에 있던 앱을 돌려줌"""
+    from AppKit import NSApplication
+    prev = NSWorkspace.sharedWorkspace().frontmostApplication()
+    _ensure_nudge_window()
     NSApplication.sharedApplication().activateIgnoringOtherApps_(True)
     _nudge_win.makeKeyAndOrderFront_(None)
     return prev
@@ -238,6 +244,8 @@ class MacPlatform(Platform):
         self.last_en_source = None
         self.toggling = False
         self._remember_source(current_source_id())
+        if self.FOCUS_NUDGE:
+            _ensure_nudge_window()
         self._observer = _Observer.alloc().initWithPlatform_(self)
         NSDistributedNotificationCenter.defaultCenter().addObserver_selector_name_object_(
             self._observer, 'sourceChanged:', 'com.apple.Carbon.TISNotifySelectedKeyboardInputSourceChanged', None)
