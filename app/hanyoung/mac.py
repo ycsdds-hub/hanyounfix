@@ -271,6 +271,12 @@ class MacPlatform(Platform):
         target = EN if before == KO else KO
         self.toggling = True
         try:
+            if before == KO:
+                # 조합 중인 글자를 먼저 확정: 입력 소스만 바꾸면 Mac 한국어 입력기가 조합 중인 글자를
+                # 기억해 두었다가 다음에 한국어로 바꿀 때 다시 넣음 (CI 실측: 'ㅐgo to job')
+                # 띄어쓰기로 확정한 뒤 그 띄어쓰기를 바로 지우면 화면은 그대로
+                self._tap(0x20)
+                self._tap(VK_BACK)
             def select():
                 sid = pick_source(source_ids(), target, self.last_en_source)
                 return bool(sid) and select_source(sid)
