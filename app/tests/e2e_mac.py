@@ -137,6 +137,15 @@ def run_cases(app, win, tv):
 
 
 def main():
+    if '--enable-only' in sys.argv:
+        # 실제 Mac처럼 앱을 켜기 전에 한국어 입력기를 미리 켜 둠 (CI에서 앱보다 먼저 실행)
+        print('한국어 입력 소스 켜기:', enable_korean())
+        for mode in ('ko', 'en'):
+            sid = pick_source(mac.source_ids(), mode)
+            print(mode, '선택:', sid, bool(sid) and mac.select_source(sid))
+            time.sleep(1)
+        print('현재:', mac.current_source_id())
+        return
     print('한국어 입력 소스 켜기:', enable_korean())
     app, win, tv = make_window()
     threading.Thread(target=run_cases, args=(app, win, tv), daemon=True).start()

@@ -89,6 +89,8 @@ jobs:
       - name: 실제 타이핑 확인 (한국어 두벌식, 테스트 창)
         timeout-minutes: 10
         run: |
+          python -u app/tests/e2e_mac.py --enable-only
+          sleep 3
           app/dist/HanYoungFix.app/Contents/MacOS/HanYoungFix &
           PID=$!
           sleep 5
