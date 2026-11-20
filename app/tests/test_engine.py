@@ -4,7 +4,7 @@ import sys
 import unittest
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-sys.path.insert(0, os.path.join(ROOT, 'windows'))
+sys.path.insert(0, os.path.join(ROOT, 'app'))
 from hanyoung.core import Dictionary, eng_to_hangul, ime_keys  # noqa: E402
 from hanyoung.engine import EN, KO, Engine, Key, KeyEvent, Platform, Settings  # noqa: E402
 

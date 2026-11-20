@@ -1,4 +1,8 @@
-"""설정 저장(%APPDATA%\\HanYoungFix\\settings.json)과 윈도우 시작 시 자동 실행"""
+"""설정 저장과 시작 시 자동 실행
+
+- Windows: %APPDATA%\\HanYoungFix\\settings.json, 레지스트리 Run 키
+- macOS: ~/Library/Application Support/HanYoungFix/settings.json, ~/Library/LaunchAgents
+"""
 from __future__ import annotations
 
 import json
@@ -13,8 +17,15 @@ APP_NAME = 'HanYoungFix'
 RUN_KEY = r'Software\Microsoft\Windows\CurrentVersion\Run'
 
 
+IS_MAC = sys.platform == 'darwin'
+MAC_AGENT_ID = 'com.hanyoungfix.app'
+
+
 def config_dir() -> str:
-    base = os.environ.get('APPDATA') or os.path.expanduser('~')
+    if IS_MAC:
+        base = os.path.expanduser('~/Library/Application Support')
+    else:
+        base = os.environ.get('APPDATA') or os.path.expanduser('~')
     path = os.path.join(base, APP_NAME)
     os.makedirs(path, exist_ok=True)
     return path
@@ -25,6 +36,9 @@ class Store:
         self.path = path or os.path.join(config_dir(), 'settings.json')
         self.lock = threading.Lock()
         self.settings = Settings()
+        if IS_MAC:
+            # Mac에서 Chrome 실행 파일 이름. Chrome 확장과 함께 고치면 글자가 지워질 수 있어 기본으로 제외
+            self.settings.excluded_apps = ['google chrome']
         self.trusted_apps: dict[str, bool] = {}
         self.load()
 
@@ -61,7 +75,35 @@ def launch_command() -> str:
     return f'"{pyw if os.path.exists(pyw) else sys.executable}" "{main}"'
 
 
+def _mac_app_path() -> str | None:
+    """실행 중인 .app 번들 경로 (.../HanYoungFix.app). 소스로 실행 중이면 None"""
+    exe = os.path.realpath(sys.executable)
+    marker = '.app/Contents/MacOS/'
+    return exe[:exe.index(marker) + 4] if marker in exe else None
+
+
+def _set_autostart_mac(on: bool):
+    import plistlib
+    path = os.path.expanduser(f'~/Library/LaunchAgents/{MAC_AGENT_ID}.plist')
+    if not on:
+        if os.path.exists(path):
+            os.remove(path)
+        return
+    app = _mac_app_path()
+    if app:
+        args = ['/usr/bin/open', '-a', app]
+    else:
+        main = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'main.py'))
+        args = [sys.executable, main]
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, 'wb') as f:
+        plistlib.dump({'Label': MAC_AGENT_ID, 'ProgramArguments': args, 'RunAtLoad': True}, f)
+
+
 def set_autostart(on: bool):
+    if IS_MAC:
+        _set_autostart_mac(on)
+        return
     import winreg
     with winreg.OpenKey(winreg.HKEY_CURRENT_USER, RUN_KEY, 0, winreg.KEY_SET_VALUE) as key:
         if on:

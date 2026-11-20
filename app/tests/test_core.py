@@ -4,7 +4,7 @@ import sys
 import unittest
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-sys.path.insert(0, os.path.join(ROOT, 'windows'))
+sys.path.insert(0, os.path.join(ROOT, 'app'))
 from hanyoung.core import Dictionary, decide, decide_context, eng_to_hangul, hangul_to_eng  # noqa: E402
 
 CASES = json.load(open(os.path.join(ROOT, 'test', 'cases.json'), encoding='utf-8'))

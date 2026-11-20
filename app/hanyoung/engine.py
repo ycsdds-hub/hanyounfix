@@ -255,7 +255,7 @@ class Engine:
             self._start(self._undo)
             return True
         if ev.ctrl or ev.alt or ev.win:
-            if ev.ctrl and ev.vk == VK_BACK:
+            if (ev.ctrl or ev.alt) and ev.vk == VK_BACK:  # 단어·줄 지우기 (Mac은 ⌥⌫, ⌘⌫)
                 self.erased = True
             self.reset()
             self.history = []

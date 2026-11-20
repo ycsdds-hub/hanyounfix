@@ -3,7 +3,9 @@ node_modules/
 .DS_Store
 __pycache__/
 *.pyc
-windows/build/
-windows/dist/
-windows/icon.ico
+app/build/
+app/dist/
+app/icon.ico
+app/icon.icns
+app/HanYoungFix.iconset/
 *.spec
