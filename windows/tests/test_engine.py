@@ -87,12 +87,13 @@ class Harness:
                              notify=lambda b, a, m=None: self.notes.append((b, a, m)))
         self.p.engine = self.engine
         self.app = 'notepad.exe'
+        self.window = 1
 
     def key(self, vk, shift=False, ctrl=False, run=True):
-        ev = KeyEvent(vk, True, shift=shift, ctrl=ctrl, app=self.app, window=1)
+        ev = KeyEvent(vk, True, shift=shift, ctrl=ctrl, app=self.app, window=self.window)
         if not self.engine.handle(ev):
             self.ime.press(vk, shift)
-        self.engine.handle(KeyEvent(vk, False, shift=shift, app=self.app, window=1))
+        self.engine.handle(KeyEvent(vk, False, shift=shift, app=self.app, window=self.window))
         if run:
             self.run()
 
@@ -273,8 +274,11 @@ class ContextTest(unittest.TestCase):
 class RetypeTest(unittest.TestCase):
     """고친 단어를 지우고 원래 모드로 다시 쓰면 일부러 쓴 것으로 보고 그대로 둠"""
 
-    def test_retype_after_erasing_is_kept_and_learned(self):
+    def _kept_hello(self):
+        """한글 모드로 hello → 교정 → 지우고 그 자리에 다시 씀 → 그대로"""
         h = Harness(KO)
+        t = [0.0]
+        h.engine.clock = lambda: t[0]
         h.type('hello ')
         self.assertEqual(h.ime.screen, 'hello ')
         for _ in range(6):
@@ -282,9 +286,40 @@ class RetypeTest(unittest.TestCase):
         h.key(0x15)                    # 한/영을 원래대로
         h.type('hello ')
         self.assertEqual(h.ime.screen, 'ㅗ디ㅣㅐ ')
-        self.assertIn('ㅗ디ㅣㅐ', h.engine.settings.user_words)
-        h.type('hello ')               # 배웠으므로 다음에도 그대로
+        self.assertEqual(h.engine.settings.user_words, [])   # 영구히 배우지는 않음
+        return h, t                    # 지금은 한글 모드
+
+    def test_kept_word_stays_in_same_window_for_10_minutes(self):
+        h, t = self._kept_hello()
+        t[0] = 300.0                   # 5분 뒤 같은 창
+        h.type('hello ')
         self.assertEqual(h.ime.screen, 'ㅗ디ㅣㅐ ㅗ디ㅣㅐ ')
+        t[0] = 300.0 + 601            # 마지막으로 쓴 뒤 10분 넘게 지남
+        h.type('hello ')
+        self.assertEqual(h.ime.screen, 'ㅗ디ㅣㅐ ㅗ디ㅣㅐ hello ')
+
+    def test_kept_word_in_other_window_only_1_minute(self):
+        h, t = self._kept_hello()
+        h.window = 2                   # 다른 창
+        h.ime.text, h.ime.comp = '', []
+        t[0] = 30.0
+        h.type('hello ')
+        self.assertEqual(h.ime.screen, 'ㅗ디ㅣㅐ ')     # 1분 안: 그대로
+        h.window = 3
+        h.ime.text, h.ime.comp = '', []
+        t[0] = 120.0
+        h.type('hello ')
+        self.assertEqual(h.ime.screen, 'hello ')       # 1분 지남: 고침
+
+    def test_retype_elsewhere_after_other_word_is_fixed(self):
+        h = Harness(KO)
+        h.type('hello ')
+        for _ in range(6):
+            h.key(0x08)
+        h.type('dkssud ')              # 다른 단어(안녕)를 먼저 씀 → 그 자리가 아님
+        h.key(0x15)
+        h.type('hello ')
+        self.assertEqual(h.ime.screen, '안녕 hello ')
 
     def test_repeating_same_mistake_without_erasing_is_fixed(self):
         h = Harness(KO)

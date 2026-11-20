@@ -170,6 +170,14 @@ def _send(inputs: list[INPUT]):
 class WindowsPlatform(Platform):
     STEP = 0.012       # 키 묶음 사이 쉬는 시간
     TOGGLE_WAIT = 0.04  # 한/영 전환 뒤 IME가 바뀔 때까지
+    # 교정을 시작하기 전 기다리는 시간: 방금 누른 키를 프로그램이 다 처리한 뒤에 지우기 시작해야 함.
+    # Windows 11 메모장(TSF)은 키 처리가 늦어, 0.02초로는 6번째 글자보다 백스페이스가 먼저 처리되어
+    # 'd안녕'처럼 한 글자가 남았음. 그동안 친 키는 막아 두었다가 교정 뒤 순서대로 보냄.
+    ACT_DELAY = 0.12
+    # 보내는 키 사이 간격: 메모장처럼 키 처리가 늦은 프로그램은 몰아서 보내면 백스페이스를 놓치거나
+    # 한/영 전환 전에 글자를 처리해 버림 (실측: 간격 없으면 'd안녕', 'dk안녕')
+    KEY_GAP = 0.015
+    TOGGLE_MAX_WAIT = 0.3  # 한/영 전환이 실제로 반영될 때까지 기다리는 최대 시간
 
     def __init__(self, trusted_apps=None, on_trust=None):
         self.engine = None
@@ -197,7 +205,7 @@ class WindowsPlatform(Platform):
     def _worker(self):
         while True:
             fn = self.jobs.get()
-            time.sleep(0.02)  # 방금 누른 키가 프로그램에 먼저 전달되도록
+            time.sleep(self.ACT_DELAY)  # 방금 누른 키를 프로그램이 먼저 처리하도록
             try:
                 fn()
             except Exception as e:  # 교정 실패가 앱 전체를 멈추지 않도록
@@ -220,12 +228,21 @@ class WindowsPlatform(Platform):
         self._release_modifiers()
         for _ in range(n):
             _send([_kbd(VK_BACK), _kbd(VK_BACK, up=True)])
+            if self.KEY_GAP:
+                time.sleep(self.KEY_GAP)
         time.sleep(self.STEP)
 
     def send_toggle(self):
         self._release_modifiers()
+        before = ime_mode()
         _send([_kbd(VK_HANGUL), _kbd(VK_HANGUL, up=True)])
         time.sleep(self.TOGGLE_WAIT)
+        # 정해진 시간만 기다리지 않고, 입력기 상태가 실제로 바뀐 것을 확인한 뒤 글자를 보냄
+        if before is not None:
+            end = time.monotonic() + self.TOGGLE_MAX_WAIT
+            while time.monotonic() < end and ime_mode() == before:
+                time.sleep(0.01)
+            time.sleep(self.KEY_GAP)
 
     def send_keys(self, keys: list[Key]):
         shift = key_down(VK_SHIFT)
@@ -239,6 +256,8 @@ class WindowsPlatform(Platform):
                 shift = False
             seq += [_kbd(k.vk), _kbd(k.vk, up=True)]
             _send(seq)
+            if self.KEY_GAP:
+                time.sleep(self.KEY_GAP)
         if shift:
             _send([_kbd(VK_LSHIFT, up=True)])
         time.sleep(self.STEP)

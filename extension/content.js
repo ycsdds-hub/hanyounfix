@@ -152,14 +152,49 @@
   const recentFixes = new WeakMap(); // el → [{ w: 고치기 전 단어(소문자), t }]
   const erased = new WeakMap();      // el → 마지막 교정 뒤에 지운 적이 있는지
 
-  function retyped(el, token, prefix = false) {
-    if (!erased.get(el)) return false; // 지우지 않고 또 친 것은 같은 실수를 반복한 것으로 봄
+  // 일부러 다시 쓴 단어: 같은 창(탭)에서는 10분, 다른 탭에서는 1분 동안 그대로 둠 (영구히 배우지는 않음)
+  // 다른 탭도 알 수 있게 chrome.storage.local 에 둠
+  const KEEP_SAME_MS = 10 * 60000;
+  const KEEP_OTHER_MS = 60000;
+  const PAGE_ID = Math.random().toString(36).slice(2) + Date.now().toString(36);
+  let kept = []; // [{ w, t, page }]
+  chrome.storage.local.get({ kept: [] }, (r) => { kept = r?.kept || []; });
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'local' && changes.kept) kept = changes.kept.newValue || [];
+  });
+
+  function keepWord(token) {
+    const w = token.toLowerCase();
+    const now = Date.now();
+    kept = [...kept.filter((k) => now - k.t < KEEP_SAME_MS && !(k.w === w && k.page === PAGE_ID)), { w, t: now, page: PAGE_ID }];
+    chrome.storage.local.set({ kept });
+  }
+
+  /** 일부러 다시 쓴 단어라 아직 그대로 둘 기간인지 (prefix: 치는 중인 앞부분) */
+  function isKept(token, prefix = false) {
+    const w = token.toLowerCase();
+    const now = Date.now();
+    for (const k of kept) {
+      if (!(k.w === w || (prefix && k.w.startsWith(w)))) continue;
+      const same = k.page === PAGE_ID;
+      if (now - k.t < (same ? KEEP_SAME_MS : KEEP_OTHER_MS)) {
+        if (same && k.w === w) keepWord(token); // 같은 탭에서 또 쓰면 10분 연장
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /** 방금 고친 단어를 지우고 그 자리에 똑같이 다시 썼으면 그 기록의 위치, 아니면 -1 */
+  function retypeIndex(el, token, prefix = false) {
+    if (!erased.get(el)) return -1; // 지우지 않고 또 친 것은 같은 실수를 반복한 것으로 봄
     const now = Date.now();
     const list = (recentFixes.get(el) || []).filter((r) => now - r.t < RETYPE_MS);
     recentFixes.set(el, list);
     const w = token.toLowerCase();
-    return list.some((r) => r.w === w || (prefix && (r.w.startsWith(w) || w.startsWith(r.w))));
+    return list.findIndex((r) => r.w === w || (prefix && (r.w.startsWith(w) || w.startsWith(r.w))));
   }
+  const retyped = (el, token, prefix = false) => retypeIndex(el, token, prefix) >= 0;
 
   function rememberFix(el, words, replaceLast) {
     const list = recentFixes.get(el) || [];
@@ -195,9 +230,11 @@
       const t = findToken(text, pos - 1);
       if (!t) break;
       const lower = t.token.toLowerCase();
-      if (userWords.has(lower) || retyped(el, t.token)) break;
+      if (userWords.has(lower) || retyped(el, t.token) || isKept(t.token)) break;
       // 영문 → 한글은 '영어 단어가 아님'을 확인해야 하므로 사전 결과가 꼭 있어야 함
       if (!toEnglish && !cache.has(lower)) break;
+      // 혼자서도 고쳐질 단어가 그대로 남아 있다면 일부러 둔 것(다시 쓰기, 되돌리기 등) → 문맥으로 끌어오지 않음
+      if (HY.decide(t.token, dict)) break;
       const fixed = HY.decideContext(t.token, dict, toEnglish);
       if (!fixed) break;
       out.unshift({ start: t.start, token: t.token, fixed });
@@ -209,10 +246,21 @@
   /** 동기적으로 판단 가능하면 바로 고치고 true */
   function tryFix(ctx, tok, { midWord = false } = {}) {
     const cont = isContinuation(ctx.el, tok);
-    if (!cont && retyped(ctx.el, tok.token, midWord)) {
-      // 고쳤던 단어를 지우고 다시 씀 → 일부러 쓴 것
-      if (!midWord) learnWord(tok.token, `다시 쓰셔서 ‘${tok.token}’은(는) 그대로 둘게요`);
-      return true;
+    if (!cont) {
+      const idx = retypeIndex(ctx.el, tok.token, midWord);
+      if (idx >= 0) {
+        // 고친 단어를 지우고 그 자리에 다시 씀 → 이번만 그대로 (배우지 않으므로 다음 같은 실수는 다시 고침)
+        if (!midWord) {
+          recentFixes.get(ctx.el).splice(idx, 1);
+          keepWord(tok.token);
+          toast(null, null, `다시 쓰셔서 ‘${tok.token}’은(는) 이 탭에서 10분 동안 그대로 둘게요`);
+        }
+        return true;
+      }
+      // 다른 단어를 끝까지 썼으면 '그 자리에 다시 쓰기'는 끝남
+      if (!midWord) recentFixes.set(ctx.el, []);
+      if (isKept(tok.token, midWord)) return true; // 일부러 다시 썼던 단어
+
     }
     // 길이 제한은 decide()가 키 개수로 판단 (한글 2글자도 키는 4개 이상일 수 있음)
     if (!cont && tok.token.length < 2) {

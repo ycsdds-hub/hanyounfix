@@ -35,6 +35,8 @@ WORD_BLOCKING_VKS = set(range(0x30, 0x3A)) | set(range(0x60, 0x70)) | {0xBD, 0xB
 UNDO_WINDOW = 6.0  # 초
 CONTEXT_WORDS = 3   # 문맥 교정 때 함께 볼 앞 단어 수
 RETYPE_WINDOW = 60.0  # 초: 고친 단어를 이 시간 안에 같은 모드로 다시 치면 일부러 쓴 것으로 보고 그대로 둠
+KEEP_SAME_WINDOW = 600.0   # 초: 일부러 다시 쓴 단어를 같은 창에서는 10분 동안 그대로 둠 (쓸 때마다 연장)
+KEEP_OTHER_WINDOW = 60.0   # 초: 다른 창에서는 1분 동안만
 
 
 @dataclass(frozen=True)
@@ -136,6 +138,7 @@ class Engine:
         self.word_kept = False     # 이번 단어는 고쳤던 단어를 다시 친 것: 그대로 둠
         self.history: list[_Word] = []  # 바로 앞에 띄어쓰기로 이어 친 단어들 (오래된 순)
         self.recent: list[tuple[str, str, float]] = []  # 최근에 고친 (키, 원래 모드, 시각)
+        self.kept: list[list] = []  # 일부러 다시 쓴 단어 [키, 모드, 창, 시각]
         self.erased = False        # 마지막 교정 뒤에 백스페이스로 지운 적이 있는지
         self.window = None
         self.last_fix: _Fix | None = None
@@ -166,28 +169,43 @@ class Engine:
         return self._show(self.keys, mode)
 
     # ---------- 다시 쓰면 그대로 두기 ----------
-    def _retyped(self, keys: list[Key], mode: str, prefix: bool = False) -> bool:
-        """고친 지 얼마 안 된 단어를 원래 모드 그대로 다시 쳤는지 (prefix: 치는 중인 앞부분)"""
+    def _retype_index(self, keys: list[Key], mode: str, prefix: bool = False) -> int | None:
+        """방금 고친 단어를 지우고 그 자리에 원래 모드 그대로 다시 쳤으면 그 기록의 위치 (prefix: 치는 중인 앞부분)"""
         if not self.erased:
-            return False  # 지우지 않고 또 친 것은 같은 실수를 반복한 것으로 봄
+            return None  # 지우지 않고 또 친 것은 같은 실수를 반복한 것으로 봄
         now = self.clock()
         self.recent = [r for r in self.recent if now - r[2] < RETYPE_WINDOW]
         s = ''.join(k.char for k in keys).lower()
-        for k, m, _ in self.recent:
+        for i, (k, m, _) in enumerate(self.recent):
             if m == mode and (k == s or (prefix and (k.startswith(s) or s.startswith(k)))):
+                return i
+        return None
+
+    def _retyped(self, keys: list[Key], mode: str, prefix: bool = False) -> bool:
+        return self._retype_index(keys, mode, prefix) is not None
+
+    def _keep(self, word: str, keys: list[Key], mode: str):
+        """일부러 다시 쓴 단어: 같은 창에서 10분, 다른 창에서 1분 동안 그대로 둠 (영구히 배우지는 않음)"""
+        s = ''.join(k.char for k in keys).lower()
+        self.kept = [k for k in self.kept if not (k[0] == s and k[1] == mode and k[2] == self.window)]
+        self.kept.append([s, mode, self.window, self.clock()])
+        if self.settings.show_toast:
+            self.notify(None, None, f"다시 쓰셔서 '{word}'은(는) 이 창에서 10분 동안 그대로 둘게요")
+
+    def _exempt(self, keys: list[Key], mode: str, prefix: bool = False) -> bool:
+        """일부러 다시 쓴 단어라 아직 그대로 둘 기간인지 (같은 창 10분, 다른 창 1분)"""
+        now = self.clock()
+        self.kept = [k for k in self.kept if now - k[3] < KEEP_SAME_WINDOW]
+        s = ''.join(k.char for k in keys).lower()
+        for k in self.kept:
+            if k[1] != mode or not (k[0] == s or (prefix and k[0].startswith(s))):
+                continue
+            same = k[2] == self.window
+            if now - k[3] < (KEEP_SAME_WINDOW if same else KEEP_OTHER_WINDOW):
+                if same and k[0] == s:
+                    k[3] = now  # 같은 창에서 또 쓰면 10분 연장
                 return True
         return False
-
-    def _keep(self, word: str):
-        """일부러 쓴 단어: 앞으로 고치지 않도록 배움"""
-        word = word.lower()
-        if word in self.dict.user_words:
-            return
-        self.settings.user_words.append(word)
-        self.dict.user_words.add(word)
-        self.on_learn(word)
-        if self.settings.show_toast:
-            self.notify(None, None, f"다시 쓰셔서 '{word}'은(는) 그대로 둘게요")
 
     # ---------- 이벤트 ----------
     def handle(self, ev: KeyEvent) -> bool:
@@ -288,6 +306,8 @@ class Engine:
         if self._retyped(self.keys, mode, prefix=True):
             self.word_kept = True
             return
+        if self._exempt(self.keys, mode, prefix=True):
+            return  # 일부러 쓴 단어일 수 있음: 띄어쓰기에서 판단
         fixed = decide(self._keystr(), self.dict, mid_word=True)
         if fixed:
             keys = list(self.keys)
@@ -308,9 +328,19 @@ class Engine:
             self.history = []
             return False
         token = self._displayed(mode)
-        if self.word_kept or self._retyped(keys, mode):
-            # 고쳤던 단어를 같은 모드로 다시 침 → 일부러 쓴 것
-            self._keep(token)
+        idx = self._retype_index(keys, mode, prefix=self.word_kept)
+        if self.word_kept or idx is not None:
+            # 고친 단어를 지우고 그 자리에 같은 모드로 다시 침 → 이번만 그대로 (그 기록은 다 씀)
+            if idx is not None:
+                del self.recent[idx]
+            self._keep(token, keys, mode)
+            self.reset()
+            self.history = []
+            return False
+        # 다른 단어를 끝까지 쳤으면 '그 자리에 다시 쓰기'는 끝남
+        self.recent = []
+        if self._exempt(keys, mode):
+            # 일부러 다시 썼던 단어: 같은 창 10분, 다른 창 1분 동안 그대로
             self.reset()
             self.history = []
             return False
@@ -332,9 +362,12 @@ class Engine:
         """이번 단어와 같은 모드로 바로 앞에 친 단어 중 함께 고칠 단어들 (가까운 것부터 끊김 없이)"""
         out = []
         for w in reversed(self.history):
-            if w.mode != mode or self._retyped(w.keys, mode):
+            if w.mode != mode or self._retyped(w.keys, mode) or self._exempt(w.keys, mode):
                 break
-            fixed = decide_context(self._show(w.keys, mode), self.dict, to_english=(mode == KO))
+            shown = self._show(w.keys, mode)
+            if decide(shown, self.dict):
+                break  # 혼자서도 고쳐질 단어가 남아 있다면 일부러 둔 것 → 문맥으로 끌어오지 않음
+            fixed = decide_context(shown, self.dict, to_english=(mode == KO))
             if not fixed:
                 break
             out.append((w, fixed))
