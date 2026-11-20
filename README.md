@@ -108,7 +108,6 @@ windows/
   hanyoung/win32.py    키보드 후킹, IME 상태, 키 보내기
   hanyoung/ui.py       트레이 아이콘, 설정 창, 알림
   build.bat       exe 만들기
-desktop/          예전 Python 버전 (macOS용으로 남겨 둠)
 scripts/          단어 목록 생성 스크립트
 test/             node:test 테스트, cases.json(확장과 Windows 앱 공통 사례)
 ```
