@@ -135,6 +135,38 @@ def has_permissions(prompt=False) -> dict[str, bool]:
     return {'accessibility': ax, 'input_monitoring': listen, 'post': post}
 
 
+# ---------- 입력 소스 바꾼 뒤 앞 창에 반영시키기 ----------
+# macOS는 프로그램이 한국어 같은 입력기로 입력 소스를 바꾸면, 지금 쓰는 창에는 바로 반영되지 않을 때가 있음
+# (CI 실측: 입력 소스는 '한국어'인데 앞 창은 영어로 입력됨). 잠깐 보이지 않는 창으로 포커스를 옮겼다가
+# 되돌리면 앞 창이 입력 소스를 다시 읽어 반영됨 (macism 등에서 쓰는 방법)
+_nudge_win = None
+
+
+def focus_nudge_begin():
+    """메인 스레드: 우리 앱의 보이지 않는 창을 잠깐 앞으로. 원래 앞에 있던 앱을 돌려줌"""
+    global _nudge_win
+    from AppKit import (NSApplication, NSBackingStoreBuffered, NSMakeRect, NSWindow,
+                        NSWindowStyleMaskTitled)
+    prev = NSWorkspace.sharedWorkspace().frontmostApplication()
+    if _nudge_win is None:
+        w = NSWindow.alloc().initWithContentRect_styleMask_backing_defer_(
+            NSMakeRect(-10000, -10000, 1, 1), NSWindowStyleMaskTitled, NSBackingStoreBuffered, False)
+        w.setAlphaValue_(0.0)
+        w.setReleasedWhenClosed_(False)
+        _nudge_win = w
+    NSApplication.sharedApplication().activateIgnoringOtherApps_(True)
+    _nudge_win.makeKeyAndOrderFront_(None)
+    return prev
+
+
+def focus_nudge_end(prev):
+    """메인 스레드: 보이지 않는 창을 치우고 원래 앱을 다시 앞으로"""
+    if _nudge_win is not None:
+        _nudge_win.orderOut_(None)
+    if prev is not None:
+        prev.activateWithOptions_(1 << 1)  # NSApplicationActivateIgnoringOtherApps
+
+
 def open_privacy_settings(pane='Accessibility'):
     os.system(f'open "x-apple.systempreferences:com.apple.preference.security?Privacy_{pane}"')
 
@@ -185,7 +217,8 @@ class _Observer(NSObject):
         self.platform.refresh_mode()
 
     def appActivated_(self, _note):
-        self.platform.front.update()
+        if not self.platform.toggling:  # 한/영 반영용으로 잠깐 포커스를 옮길 때는 앞 앱으로 치지 않음
+            self.platform.front.update()
 
 
 # ---------- 플랫폼 ----------
@@ -194,6 +227,7 @@ class MacPlatform(Platform):
     ACT_DELAY = 0.12        # 교정 시작 전, 방금 누른 키를 앱이 먼저 처리하도록
     KEY_GAP = 0.012         # 보내는 키 사이 간격
     TOGGLE_MAX_WAIT = 0.4   # 한/영 전환이 실제로 반영될 때까지 기다리는 최대 시간
+    FOCUS_NUDGE = True      # 입력 소스를 바꾼 뒤 포커스를 잠깐 옮겨 앞 창에 반영
 
     def __init__(self):
         import queue
@@ -281,6 +315,11 @@ class MacPlatform(Platform):
                 sid = pick_source(source_ids(), target, self.last_en_source)
                 return bool(sid) and select_source(sid)
             on_main(select)
+            if self.FOCUS_NUDGE:
+                prev = on_main(focus_nudge_begin)
+                time.sleep(0.06)
+                on_main(lambda: focus_nudge_end(prev))
+                time.sleep(0.08)
             end = time.monotonic() + self.TOGGLE_MAX_WAIT
             while time.monotonic() < end:
                 on_main(self.refresh_mode)

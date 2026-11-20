@@ -92,7 +92,8 @@ class MacApp(rumps.App):
             self._flash_until = 0.0
         if self.platform is not None:
             self.platform.refresh_mode()  # 입력 소스 알림을 놓쳐도 0.5초마다 맞춤
-            self.platform.front.update()
+            if not self.platform.toggling:
+                self.platform.front.update()
         self._update_status()
 
     def _update_status(self):

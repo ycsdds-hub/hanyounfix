@@ -91,10 +91,12 @@ def run_cases(app, win, tv):
                 tv.setString_('')
                 app.activateIgnoringOtherApps_(True)
                 win.makeKeyAndOrderFront_(None)
-                win.makeFirstResponder_(tv)
                 sid = pick_source(mac.source_ids(), mode)
                 if sid:
                     mac.select_source(sid)
+                # 입력 소스를 바꾼 뒤 입력 칸을 다시 활성화해야 이 창에 반영됨
+                win.makeFirstResponder_(None)
+                win.makeFirstResponder_(tv)
             mac.on_main(prepare)
             time.sleep(0.8)  # 앱이 입력 소스 변경을 알아차릴 시간
             sid = mac.on_main(mac.current_source_id)
