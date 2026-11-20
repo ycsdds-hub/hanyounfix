@@ -122,6 +122,7 @@ def run_cases(app, win, tv):
             got = str(mac.on_main(lambda: tv.string()) or '')
             if want is None:
                 print(f'준비 [{mode}] {keys!r} -> {got!r}')
+                print('   화면 변화:', ' → '.join(repr(t) for t in trace))
                 continue
             ok = got == want
             if not ok:
