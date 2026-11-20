@@ -3,7 +3,7 @@
 한/영 전환을 잘못한 채로 입력한 단어를 바로 고쳐 줍니다.
 
 - **Chrome 확장** (`extension/`): 웹페이지 입력창에서 동작
-- **Windows 앱** (`windows/`): 메모장, 카카오톡, 오피스 등 모든 프로그램에서 동작하고, 한/영 상태까지 바꿔 줍니다
+- **Windows 앱 / Mac 앱** (`app/`): 메모장, 카카오톡, 오피스 등 모든 프로그램에서 동작하고, 한/영 상태까지 바꿔 줍니다
 
 | 이렇게 쳤을 때 | 이렇게 고쳐요 |
 | --- | --- |
@@ -52,11 +52,11 @@ Edge, Whale, Brave 같은 Chromium 기반 브라우저에서도 같은 방법으
 ### 설치
 
 1. GitHub 저장소의 **Actions** 탭 → 가장 최근 성공한 실행 → **HanYoungFix-windows** 를 내려받아 압축을 풉니다.
-   (또는 `windows\build.bat` 을 실행해 직접 만들 수 있어요. Python 3.10 이상 필요)
+   (또는 `app\build.bat` 을 실행해 직접 만들 수 있어요. Python 3.10 이상 필요)
 2. `HanYoungFix.exe` 를 실행합니다. 서명되지 않은 프로그램이라 "Windows의 PC 보호" 창이 뜨면 **추가 정보 → 실행**을 누르세요.
 3. 작업 표시줄 오른쪽에 아이콘이 생깁니다. 아이콘을 두 번 누르면 설정 창이 열립니다.
 
-소스로 바로 실행하려면: `pip install -r windows/requirements.txt` 후 `pythonw windows/main.py`
+소스로 바로 실행하려면: `pip install -r app/requirements.txt` 후 `pythonw app/main.py`
 
 ### 사용법
 
@@ -75,20 +75,52 @@ Edge, Whale, Brave 같은 Chromium 기반 브라우저에서도 같은 방법으
 - 일부 프로그램(UWP 앱, 일부 게임 등)은 한/영 상태를 알려 주지 않아 교정하지 않습니다. 설정 창의 "지금 앞에 있는 프로그램"에서 상태를 확인할 수 있어요.
 - 키보드 입력을 감시하는 프로그램이라 백신이 경고할 수 있습니다. 소스는 모두 이 저장소에 있습니다.
 
+## Mac 앱
+
+Windows 앱과 같은 교정 규칙(문맥 교정, 다시 쓰면 그대로 두기 포함)으로 모든 앱에서 동작하고, 입력 소스(한/영)도 바꿔 줍니다. 메뉴 막대에 아이콘이 생기고 Dock에는 나타나지 않습니다.
+
+### 설치
+
+1. GitHub 저장소의 **Actions** 탭 → 가장 최근 성공한 실행 → **HanYoungFix-mac** 을 내려받아 압축을 풀고, `HanYoungFix.app` 을 **응용 프로그램** 폴더로 옮깁니다.
+   (또는 Mac에서 `bash app/build_mac.sh` 로 직접 만들 수 있어요. Python 3.10 이상 필요)
+2. 처음 열면 "확인되지 않은 개발자" 경고가 나옵니다 (서명·공증하지 않은 개인용 앱). **시스템 설정 → 개인정보 보호 및 보안** 아래쪽의 **그래도 열기**를 누르세요.
+3. **권한 2개를 켜 주세요.** 시스템 설정 → 개인정보 보호 및 보안 →
+   - **손쉬운 사용**: HanYoungFix 켜기
+   - **입력 모니터링**: HanYoungFix 켜기
+   권한을 켜면 몇 초 안에 저절로 동작을 시작합니다. 메뉴 막대 아이콘의 상태 줄에서 확인할 수 있어요.
+4. 시스템 설정 → 키보드 → 입력 소스에 **한국어 두벌식**과 **ABC**(또는 U.S.)가 있어야 합니다. 세벌식은 지원하지 않습니다.
+
+소스로 바로 실행하려면: `pip3 install -r app/requirements-mac.txt` 후 `python3 app/main.py` (이때는 터미널 앱에 권한을 줘야 합니다)
+
+### 사용법
+
+- Windows와 달리 **처음에 한/영 키를 눌러 볼 필요가 없습니다.** Mac은 모든 앱에서 지금 입력 소스를 알 수 있어요.
+- 교정하면 메뉴 막대 아이콘 옆에 `dkssud → 안녕`이 잠깐 보입니다 (메뉴에서 끌 수 있음).
+- 교정 직후 **⌘Z** → 되돌리고 그 단어는 앞으로 고치지 않습니다.
+- **⌃⌥H** (Control+Option+H)로 켜고 끕니다.
+- 메뉴에서: 고치지 않을 단어, 교정하지 않을 앱, 띄어쓰기 전 검사 글자 수, 로그인할 때 자동 실행
+- **Google Chrome은 기본으로 제외**되어 있습니다 (Chrome 확장과 겹치지 않도록).
+
+### 한계
+
+- 새로 빌드한 앱으로 바꾸면 권한을 다시 켜야 할 수 있습니다 (개인용 임시 서명이라 macOS가 다른 앱으로 봄).
+- 비밀번호 입력칸 등 macOS가 보안 입력을 켜는 곳에서는 키를 읽을 수 없어 동작하지 않습니다 (정상).
+- 애플 실리콘(M1 이후) Mac용으로 빌드됩니다. 인텔 Mac에서는 소스로 실행하거나 그 Mac에서 직접 빌드하세요.
+
 ## Chrome 확장의 한계
 
 - **브라우저 확장은 운영체제의 한/영 상태를 바꿀 수 없습니다.** 단어는 고쳐 주지만 입력기는 여전히 잘못된 모드이므로, 알림이 뜨면 한/영 키를 눌러 주세요. (바꾸지 않아도 이후 단어들이 계속 교정되긴 합니다.)
 - 한글 모드로 영어를 치다 **바로 Enter**를 누르면 마지막 글자가 아직 조합 중이라 고치지 못합니다. 띄어쓰기를 한 번 친 뒤 Enter를 누르면 고쳐집니다.
 - Google Docs처럼 자체 방식으로 글자를 그리는 편집기에서는 동작하지 않습니다.
 - 사전에 없는 영어(신조어, 고유명사)가 한글 글자로 딱 맞게 조합되면 한글로 바뀔 수 있어요. Ctrl+Z로 되돌리면 다음부터는 그대로 둡니다.
-- 브라우저 밖(메모장, 카카오톡 등)에서도 쓰려면 아래 Windows 앱을 사용하세요.
+- 브라우저 밖(메모장, 카카오톡 등)에서도 쓰려면 위의 Windows 앱이나 Mac 앱을 사용하세요.
 
 ## 개발
 
 ```bash
 npm install           # 단어 목록 생성용 패키지 설치
 npm test              # 변환/판단 로직 테스트
-python -m unittest discover -s windows/tests   # Windows 앱 로직 테스트
+python -m unittest discover -s app/tests   # 앱 로직 테스트 (Mac 키 표 포함)
 npm run build:words   # extension/words.txt 다시 만들기
 ```
 
@@ -101,15 +133,21 @@ extension/
   popup.*         설정 창
   words.txt       영어 단어 목록 (SCOWL)
   common.txt      흔한 영어 단어 (한글→영어 판단용)
-windows/
-  main.py         Windows 앱 시작점
+app/
+  main.py         앱 시작점 (Windows / macOS 자동 선택)
   hanyoung/core.py     변환·판단 (hangul.js와 같은 규칙)
   hanyoung/engine.py   키 입력 처리와 교정 (OS 무관, 가짜 IME로 테스트)
-  hanyoung/win32.py    키보드 후킹, IME 상태, 키 보내기
-  hanyoung/ui.py       트레이 아이콘, 설정 창, 알림
-  build.bat       exe 만들기
+  hanyoung/settings.py 설정 저장, 시작 시 자동 실행
+  hanyoung/win32.py    Windows: 키보드 후킹, IME 상태, 키 보내기
+  hanyoung/ui.py       Windows: 트레이 아이콘, 설정 창, 알림
+  hanyoung/mac.py      macOS: 이벤트 탭, 입력 소스(한/영), 키 보내기
+  hanyoung/keymap_mac.py macOS 키 코드 표, 입력 소스 판별
+  hanyoung/ui_mac.py   macOS: 메뉴 막대 아이콘과 설정
+  build.bat       Windows exe 만들기
+  build_mac.sh    Mac .app 만들기
+  tests/          로직 테스트, e2e_mac.py(CI에서 TextEdit 실제 타이핑 확인)
 scripts/          단어 목록 생성 스크립트
-test/             node:test 테스트, cases.json(확장과 Windows 앱 공통 사례)
+test/             node:test 테스트, cases.json(확장과 앱 공통 사례)
 ```
 
 ## Chrome 웹 스토어에 올리려면
