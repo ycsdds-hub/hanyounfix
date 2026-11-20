@@ -26,7 +26,7 @@
 - [x] `keymap_mac.py` + 테스트 (`app/tests/test_keymap_mac.py`), 전체 42개 통과
 - [x] `mac.py`, `ui_mac.py`, `main.py`, `settings.py` 작성
 - [x] `requirements-mac.txt`, `tests/smoke_mac.py`, `build_mac.sh` 작성
-- [ ] `build.bat` 에 Mac 모듈 제외 옵션, CI 경로 `windows/` → `app/` 수정, CI에 macOS 작업 추가 (테스트·스모크·.app 빌드·8초 실행 확인·zip 업로드)
+- [x] `build.bat` 에 Mac 모듈 제외 옵션, CI 경로 `windows/` → `app/` 수정, CI에 macOS 작업 추가 (테스트·스모크·.app 빌드·8초 실행 확인·zip 업로드)
 - [ ] `gh workflow run CI --ref mac-app` 으로 Mac CI 확인, 실패하면 고치기
 - [ ] Windows exe 다시 빌드해 바탕화면 교체 (폴더 이름만 바뀜, 동작 같음) 확인
 - [ ] README에 Mac 설치·권한·한계 추가
