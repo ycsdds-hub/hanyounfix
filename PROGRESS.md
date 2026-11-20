@@ -27,8 +27,9 @@
 - [x] `mac.py`, `ui_mac.py`, `main.py`, `settings.py` 작성
 - [x] `requirements-mac.txt`, `tests/smoke_mac.py`, `build_mac.sh` 작성
 - [x] `build.bat` 에 Mac 모듈 제외 옵션, CI 경로 `windows/` → `app/` 수정, CI에 macOS 작업 추가 (테스트·스모크·.app 빌드·8초 실행 확인·zip 업로드)
-- [ ] `gh workflow run CI --ref mac-app` 으로 Mac CI 확인, 실패하면 고치기
-- [ ] Windows exe 다시 빌드해 바탕화면 교체 (폴더 이름만 바뀜, 동작 같음) 확인
+- [x] `gh workflow run CI --ref mac-app` 으로 Mac CI 확인 → 첫 실행에서 테스트·스모크·빌드·8초 실행 모두 통과 (러너는 권한이 이미 허용됨)
+- [ ] CI에 실제 타이핑 확인 추가 (`app/tests/e2e_mac.py`: 한국어 두벌식 켜고 TextEdit에 dkssud 등 입력 후 결과 읽기) → 결과 확인, 실패하면 고치기
+- [x] Windows exe 다시 빌드해 바탕화면 교체 (09:35, 정상 실행)
 - [ ] README에 Mac 설치·권한·한계 추가
 - [ ] main에 합치고 푸시, Obsidian 노트 기록 (`Claude/2026-11-20 ...`)
 
