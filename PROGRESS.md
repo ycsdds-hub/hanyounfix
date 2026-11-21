@@ -8,7 +8,8 @@
 **브랜치:** `autostart`
 - [x] `Settings.autostart` 기본값 True, `sync_autostart()`: exe/app으로 실행될 때마다 지금 위치로 다시 등록 (소스 실행은 제외)
 - [x] 테스트 `app/tests/test_settings.py` (Mac LaunchAgent, 등록 조건, Windows 명령) → 전체 47개 통과
-- [ ] exe 다시 빌드해 바탕화면 교체, 이 PC 설정을 켜고 레지스트리 Run 키 등록 확인
+- [x] exe 다시 빌드해 바탕화면 교체, 이 PC 설정 켬 → Run 키에 바탕화면 HanYoungFix.exe 등록 확인
+- [ ] (사용자 질문) 켜고 끄는 방법 안내: Windows 트레이 아이콘 → 설정 → '윈도우 시작 시 자동 실행', Mac 메뉴 막대 → '로그인할 때 자동 실행'
 - [ ] CI(Windows·Mac) 확인 → main에 합치기, Obsidian 기록
 
 ## 최근 끝난 작업
