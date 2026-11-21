@@ -193,6 +193,21 @@ class App:
         self.engine.reset()
         self.on_toggled(s.enabled)
 
+    def toggle_autostart(self):
+        """오른쪽 아래 아이콘 메뉴에서 '윈도우 시작 시 자동 실행' 켜기/끄기"""
+        s = self.store.settings
+        try:
+            set_autostart(not s.autostart)
+        except OSError as e:
+            self.notify(None, None, f'자동 실행을 바꾸지 못했어요: {e}')
+            return
+        s.autostart = not s.autostart
+        if self.settings_window:  # 설정 창이 열려 있으면 그 체크 표시도 맞춤
+            self.settings_window.autostart.set(s.autostart)
+        self.store.save()
+        self.refresh_tray()
+        self.notify(None, None, '윈도우 시작 시 자동으로 실행해요' if s.autostart else '윈도우 시작 시 자동 실행을 껐어요')
+
     def on_toggled(self, enabled):
         self.store.save()
         self.refresh_tray()
@@ -220,6 +235,8 @@ class App:
         menu = pystray.Menu(
             item('자동 교정', lambda: self.post(self.toggle), checked=lambda _: self.store.settings.enabled),
             item('설정 열기', lambda: self.post(self.open_settings), default=True),
+            item('윈도우 시작 시 자동 실행', lambda: self.post(self.toggle_autostart),
+                 checked=lambda _: self.store.settings.autostart),
             pystray.Menu.SEPARATOR,
             item('종료', lambda: self.post(self.quit)),
         )
