@@ -113,3 +113,16 @@ def set_autostart(on: bool):
                 winreg.DeleteValue(key, APP_NAME)
             except FileNotFoundError:
                 pass
+
+
+def sync_autostart(settings) -> bool:
+    """설정에서 자동 실행이 켜져 있으면 지금 실행 중인 exe/app 위치로 다시 등록 (파일을 옮겨도 따라감).
+    소스로 실행할 때(개발 중)는 등록하지 않음. 등록했으면 True"""
+    if not settings.autostart or not getattr(sys, 'frozen', False):
+        return False
+    try:
+        set_autostart(True)
+        return True
+    except OSError as e:
+        print('자동 실행 등록 실패:', e)
+        return False

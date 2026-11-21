@@ -3,9 +3,13 @@
 > 작업이 중간에 끊겨도 여기서 이어서 하기 위한 기록입니다. 여러 단계짜리 작업을 시작하면 아래 "진행 중"에 적고,
 > 단계마다 갱신해 작업 브랜치에 커밋·푸시합니다. 다 끝나면 main에 합치고 "진행 중"을 비웁니다.
 
-## 진행 중
+## 진행 중: 시작 시 자동 실행 기본 켜기 (2026-11-21)
 
-없음
+**브랜치:** `autostart`
+- [x] `Settings.autostart` 기본값 True, `sync_autostart()`: exe/app으로 실행될 때마다 지금 위치로 다시 등록 (소스 실행은 제외)
+- [x] 테스트 `app/tests/test_settings.py` (Mac LaunchAgent, 등록 조건, Windows 명령) → 전체 47개 통과
+- [ ] exe 다시 빌드해 바탕화면 교체, 이 PC 설정을 켜고 레지스트리 Run 키 등록 확인
+- [ ] CI(Windows·Mac) 확인 → main에 합치기, Obsidian 기록
 
 ## 최근 끝난 작업
 

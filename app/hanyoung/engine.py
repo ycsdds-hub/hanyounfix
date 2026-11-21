@@ -98,7 +98,7 @@ class Settings:
     show_toast: bool = True
     user_words: list[str] = field(default_factory=list)
     excluded_apps: list[str] = field(default_factory=lambda: ['chrome.exe'])
-    autostart: bool = False
+    autostart: bool = True   # 처음 설치하면 Windows/Mac 시작 시 자동 실행 (설정에서 끌 수 있음)
 
 
 @dataclass

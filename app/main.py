@@ -11,7 +11,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from hanyoung.core import Dictionary  # noqa: E402
 from hanyoung.engine import Engine  # noqa: E402
-from hanyoung.settings import Store, config_dir  # noqa: E402
+from hanyoung.settings import Store, config_dir, sync_autostart  # noqa: E402
 
 
 def _log_to_file(always=False):
@@ -31,6 +31,7 @@ def main_windows():
         return
 
     store = Store()
+    sync_autostart(store.settings)  # 켜져 있으면 Windows 시작 시 자동 실행 (exe 위치가 바뀌어도 갱신)
     dictionary = Dictionary.load()
     app = App(store)
 
@@ -68,6 +69,7 @@ def main_mac():
         return
 
     store = Store()
+    sync_autostart(store.settings)  # 켜져 있으면 로그인할 때 자동 실행 (앱 위치가 바뀌어도 갱신)
     dictionary = Dictionary.load()
     app = MacApp(store)
     platform = mac.MacPlatform()  # 메인 스레드에서 만들어야 입력 소스 알림을 받음
