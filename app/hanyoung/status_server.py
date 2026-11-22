@@ -39,7 +39,7 @@ def start(get_enabled, port: int = PORT):
     try:
         server = Server(('127.0.0.1', port), Handler)
     except OSError as e:
-        print('상태 서버를 열지 못함:', e)
+        print('status server not started:', e)  # 콘솔 인코딩과 상관없이 안전하게 (ASCII)
         return None
     server.daemon_threads = True
     threading.Thread(target=server.serve_forever, daemon=True, name='hanyoung-status').start()
