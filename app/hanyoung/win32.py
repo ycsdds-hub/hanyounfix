@@ -265,7 +265,13 @@ class WindowsPlatform(Platform):
     def replay(self, events: list[KeyEvent]):
         for ev in events:
             vk, scan, flags = ev.raw
-            _send([_kbd(vk, up=not ev.down, extra=MAGIC_REPLAY, scan=scan, extended=bool(flags & LLKHF_EXTENDED))])
+            key = _kbd(vk, up=not ev.down, extra=MAGIC_REPLAY, scan=scan, extended=bool(flags & LLKHF_EXTENDED))
+            # 교정하며 Shift를 뗐으므로, Shift를 누른 채 친 키는 Shift를 다시 눌러 보냄
+            # (안 그러면 Shift+Enter가 Enter로 바뀌어 채팅 앱에서 메시지가 전송되고, ?가 /로 바뀜)
+            if ev.down and ev.shift and not key_down(VK_SHIFT):
+                _send([_kbd(VK_LSHIFT), key, _kbd(VK_LSHIFT, up=True)])
+            else:
+                _send([key])
         time.sleep(self.STEP)
 
 
