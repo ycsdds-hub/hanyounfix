@@ -44,10 +44,10 @@ python .claude/skills/verify/scripts/doctor.py
 python .claude/skills/verify/scripts/drive.py [journey ...]
 ```
 
-- journey: `typo-ko`, `typo-ko-space`, `ko-to-en`, `keep-en`, `context`. 생략하면 전부. `trust`는 항상 먼저 돈다 (새 프로그램은 한/영 키를 한 번 눌러야 고치기 시작하므로).
+- journey: `typo-ko`, `typo-ko-space`, `ko-to-en`, `keep-en`, `context`, `shift-question`, `shift-enter`. 생략하면 전부. `trust`는 항상 먼저 돈다 (새 프로그램은 한/영 키를 한 번 눌러야 고치기 시작하므로).
 - 각 journey: 창 비우기 → 앞으로 가져오기 → 한/영을 시작 상태로 → 키를 0.09초 간격으로 → 1.5초 기다림 → 창 글자 읽기. 0.01초마다 글자 변화(trace)를 기록한다.
 - 출력 줄: `OK  ` / `FAIL` + journey + 친 키 + 결과 + 기대, 그 아래 `화면 변화:`. 마지막 줄 `모두 통과 | evidence: <폴더>` 또는 `실패 N`. 종료 코드 0/1.
-- 새 사례를 넣으려면 `drive.py`의 `JOURNEYS`에 `(시작 한/영, 칠 키, 기대 결과)`를 추가하고 `features/`에도 적는다. 키는 영문 소문자와 띄어쓰기만 지원한다.
+- 새 사례를 넣으려면 `drive.py`의 `JOURNEYS`에 `(시작 한/영, 칠 키, 기대 결과)`를 추가하고 `features/`에도 적는다. 키는 영문 소문자, 띄어쓰기, `.`, `?`(Shift+/), `|`(Shift+Enter), 줄바꿈 문자(Enter)를 지원한다. 창은 채팅 입력창처럼 Enter를 `[send]`로, Shift+Enter를 줄바꿈으로 적는다.
 - 창을 못 가져오거나 한/영을 못 맞추면 `FAIL <journey>: 준비 실패 focus=... 한/영=...`. 사용자가 다른 창을 클릭했거나 전체 화면 앱이 떠 있는 경우가 많다.
 
 ## Evidence

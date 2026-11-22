@@ -8,6 +8,7 @@
 - `typo-ko-space` 짧은 단어는 띄어쓰기에서 고침 (`rkawk ` → `감자 `).
 - `typo-en` 한글 모드로 친 영어를 띄어쓰기에서 고치고 한/영을 영어로 바꿈 (`ㅗ디ㅣㅐ` → `hello`).
 - `keep-en` 사전에 있는 영어는 그대로 (`hello world`).
+- `shift-boundary` Shift를 누른 채 친 경계 키는 교정 뒤에도 Shift가 유지됨 (`rkawk?` → `감자?`, 한글 모드 `apple`+Shift+Enter → 줄바꿈, 보내기 아님).
 
 ## How to get to it (user POV)
 
@@ -23,6 +24,8 @@ Preconditions:
 - **띄어쓰기 교정.** `drive.py typo-ko-space`. `-> '감자 '`.
 - **영어로.** `drive.py ko-to-en`. `-> 'hello '`, 화면 변화에 `'ㅗ디ㅣㅐ'`가 보인 뒤 `'hello '`.
 - **그대로.** `drive.py keep-en`. `-> 'hello world '`, 화면 변화에 지우는 단계가 없다.
+- **Shift 경계 키.** `drive.py shift-question shift-enter`. `-> '감자?'`, `-> 'apple
+'`. 실패하면 `'감자/'`, `'apple[send]'` (Claude·카카오톡 같은 채팅 앱에서는 메시지가 전송됨).
 - **증명.** `recent.json`에 `dkssud→안녕`, `rkawk→감자`, `ㅗ디ㅣㅐ→hello` 기록이 있고 `hello world` 기록은 없다. `result.json`의 `mode_after`가 교정 뒤 한/영(`ko`/`en`).
 
 ## Gotchas

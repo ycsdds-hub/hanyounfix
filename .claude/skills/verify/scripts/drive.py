@@ -25,8 +25,12 @@ JOURNEYS = {  # 이름: (시작 한/영, 칠 키, 기대 결과)
     'ko-to-en': ('ko', 'hello ', 'hello '),         # 한글 모드로 친 영어
     'keep-en': ('en', 'hello world ', 'hello world '),  # 진짜 영어는 그대로
     'context': ('ko', 'go to job ', 'go to job '),  # 문맥 교정: 짧은 앞 단어도 같이
+    # Shift를 누른 채 친 경계 키: 교정 뒤 다시 보낼 때도 Shift가 살아 있어야 함
+    'shift-question': ('en', 'rkawk?', '감자?'),
+    'shift-enter': ('ko', 'apple|', 'apple\n'),  # 채팅 앱처럼 Enter는 [send], Shift+Enter는 줄바꿈
 }
-VK = {' ': 0x20}
+# 키 이름: 문자 → (가상 키, Shift)
+VK = {' ': (0x20, False), '.': (0xBE, False), '?': (0xBF, True), '|': (0x0D, True), '\n': (0x0D, False)}
 user32 = ctypes.windll.user32
 lines = []
 
@@ -37,8 +41,12 @@ def log(*a):
     lines.append(s)
 
 
-def press(vk):
-    win32._send([win32._kbd(vk, extra=0), win32._kbd(vk, up=True, extra=0)])  # extra=0: '사용자' 키처럼
+def press(vk, shift=False):
+    k = lambda v, up=False: win32._kbd(v, up=up, extra=0)  # noqa: E731  extra=0: '사용자' 키처럼
+    seq = [k(vk), k(vk, True)]
+    if shift:  # 사람처럼 Shift를 누른 채 키를 누르고 뗀 뒤 Shift를 뗌
+        seq = [k(win32.VK_LSHIFT)] + seq + [k(win32.VK_LSHIFT, True)]
+    win32._send(seq)
 
 
 class Window:
@@ -49,6 +57,9 @@ class Window:
         self.root.attributes('-topmost', True)
         self.text = tk.Text(self.root, font=('Malgun Gothic', 14))
         self.text.pack(fill='both', expand=True)
+        # 채팅 입력창 흉내: Enter는 보내기, Shift+Enter는 줄바꿈
+        self.text.bind('<Return>', lambda e: (self.text.insert('insert', '[send]'), 'break')[1])
+        self.text.bind('<Shift-Return>', lambda e: (self.text.insert('insert', '\n'), 'break')[1])
         self.pump(0.5)
         self.hwnd = int(self.root.wm_frame(), 16)
 
@@ -81,7 +92,7 @@ class Window:
     def type_traced(self, keys, gap=0.09, settle=1.5):
         trace, last = [], None
         for ch in keys:
-            press(VK.get(ch, ord(ch.upper())))
+            press(*VK.get(ch, (ord(ch.upper()), False)))
             end = time.time() + gap
             while time.time() < end:
                 self.root.update()
