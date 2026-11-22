@@ -34,6 +34,7 @@ class MacApp(rumps.App):
         self.engine = None
         self.platform = None
         self.hooks = None
+        self.history = None  # main.py에서 연결 (최근 교정 기록)
         self.jobs: queue.Queue = queue.Queue()
         self._flash_until = 0.0
         self._ticks = 0
@@ -46,6 +47,7 @@ class MacApp(rumps.App):
         self.m_perm = rumps.MenuItem('권한 설정 열기…', callback=self.open_permissions)
         self.menu = [
             self.m_enabled, self.m_toast, self.m_auto, None,
+            rumps.MenuItem('최근 교정 기록…', callback=self.show_history),
             rumps.MenuItem('고치지 않을 단어…', callback=self.edit_words),
             rumps.MenuItem('교정하지 않을 앱…', callback=self.edit_apps),
             rumps.MenuItem('띄어쓰기 전 검사 글자 수…', callback=self.edit_length),
@@ -153,6 +155,12 @@ class MacApp(rumps.App):
         if r.clicked != 1:
             return None
         return [x.strip() for x in r.text.splitlines() if x.strip()]
+
+    def show_history(self, _sender=None):
+        lines = self.history.lines() if self.history else []
+        rumps.alert(title='최근 교정 기록',
+                    message=('\n'.join(lines) if lines else '아직 교정한 기록이 없어요.')
+                    + '\n\n맞게 쓴 글자를 잘못 고쳤다면: 고치지 않을 단어… 에 그 단어를 넣으세요.')
 
     def edit_words(self, _sender):
         s = self.store.settings

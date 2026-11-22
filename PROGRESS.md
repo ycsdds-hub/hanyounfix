@@ -9,6 +9,7 @@
 
 ## 최근 끝난 작업
 
+- **최근 교정 기록 (2026-11-22, 브랜치 `fix-history`):** 맞는 한글이 잠깐 영어로 바뀐 현상(원인 미확정)을 확인하려고 추가. 엔진 `on_fix`, `history.py`(recent.json, 20개), Windows 아이콘 메뉴·Mac 메뉴. 테스트 56개.
 - **브라우저 주소창도 고치기 (2026-11-22, 브랜치 `chrome-by-app` → main):** 앱이 Chrome도 맡음, 앱이 켜져 있으면 확장은 쉼(`status_server.py`, 127.0.0.1:47321). 상태 서버의 getfqdn이 Mac 앱 시작을 막던 문제 고침. CI 통과, 사용자 주소창 확인.
 - **시작 시 자동 실행 (2026-11-21, 브랜치 `autostart` → main):** 기본 켜짐, 실행할 때마다 exe/app 위치로 다시 등록, Windows 아이콘 메뉴에 켜기/끄기 추가. CI Windows·Mac 통과.
 - **Mac 앱 (2026-11-20 ~ 21, 브랜치 `mac-app` → main):** `app/hanyoung/mac.py`, `ui_mac.py`, `keymap_mac.py`, `build_mac.sh`.

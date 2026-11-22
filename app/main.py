@@ -13,6 +13,7 @@ from hanyoung.core import Dictionary  # noqa: E402
 from hanyoung.engine import Engine  # noqa: E402
 from hanyoung.settings import Store, config_dir, sync_autostart  # noqa: E402
 from hanyoung import status_server  # noqa: E402
+from hanyoung.history import History  # noqa: E402
 
 
 def _log_to_file(always=False):
@@ -35,6 +36,8 @@ def main_windows():
     sync_autostart(store.settings)  # 켜져 있으면 Windows 시작 시 자동 실행 (exe 위치가 바뀌어도 갱신)
     dictionary = Dictionary.load()
     app = App(store)
+    history = History(os.path.join(config_dir(), 'recent.json'))  # 최근 교정 기록 (이 PC에만)
+    app.history = history
 
     def on_trust(name, ok):
         store.trusted_apps[name] = ok
@@ -46,6 +49,7 @@ def main_windows():
         notify=app.notify,
         on_learn=lambda word: app.post(store.save),
         on_toggle=lambda enabled: app.post(lambda: app.on_toggled(enabled)),
+        on_fix=lambda entry: app.post(lambda: history.add(entry)),
     )
     platform.engine = engine
     app.engine, app.platform = engine, platform
@@ -74,12 +78,15 @@ def main_mac():
     sync_autostart(store.settings)  # 켜져 있으면 로그인할 때 자동 실행 (앱 위치가 바뀌어도 갱신)
     dictionary = Dictionary.load()
     app = MacApp(store)
+    history = History(os.path.join(config_dir(), 'recent.json'))  # 최근 교정 기록 (이 PC에만)
+    app.history = history
     platform = mac.MacPlatform()  # 메인 스레드에서 만들어야 입력 소스 알림을 받음
     engine = Engine(
         platform, dictionary, store.settings,
         notify=app.notify,
         on_learn=lambda word: app.post(store.save),
         on_toggle=lambda enabled: app.post(lambda: app.on_toggled(enabled)),
+        on_fix=lambda entry: app.post(lambda: history.add(entry)),
     )
     platform.engine = engine
     app.engine, app.platform = engine, platform

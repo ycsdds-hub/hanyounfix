@@ -160,6 +160,7 @@ class App:
         self.root.withdraw()
         self.jobs: queue.Queue = queue.Queue()
         self.settings_window = None
+        self.history = None  # main.py에서 연결 (최근 교정 기록)
         path = icon_path()
         self.icon_img = tk.PhotoImage(file=path) if path else None
         self.toast_box = Toast(self.root)
@@ -192,6 +193,26 @@ class App:
         s.enabled = not s.enabled
         self.engine.reset()
         self.on_toggled(s.enabled)
+
+    def open_history(self):
+        """최근 교정 기록 창 (최근 20개, 최근 것부터)"""
+        win = tk.Toplevel(self.root)
+        win.title('최근 교정 기록')
+        if self.icon_img:
+            win.iconphoto(False, self.icon_img)
+        f = ttk.Frame(win, padding=12)
+        f.pack(fill='both', expand=True)
+        lines = self.history.lines() if self.history else []
+        box = tk.Text(f, width=72, height=min(22, max(6, len(lines) + 1)), font=('Malgun Gothic', 10), wrap='none')
+        box.insert('1.0', '\n'.join(lines) if lines else '아직 교정한 기록이 없어요.')
+        box.config(state='disabled')
+        box.pack(fill='both', expand=True)
+        ttk.Label(f, text='맞게 쓴 글자를 잘못 고쳤다면: 설정 열기 → 고치지 않을 단어에 그 단어를 넣으세요.',
+                  foreground='#656d76').pack(anchor='w', pady=(8, 0))
+        ttk.Button(f, text='닫기', command=win.destroy).pack(anchor='e', pady=(8, 0))
+        win.lift()
+        win.focus_force()
+        return win
 
     def toggle_autostart(self):
         """오른쪽 아래 아이콘 메뉴에서 '윈도우 시작 시 자동 실행' 켜기/끄기"""
@@ -235,6 +256,7 @@ class App:
         menu = pystray.Menu(
             item('자동 교정', lambda: self.post(self.toggle), checked=lambda _: self.store.settings.enabled),
             item('설정 열기', lambda: self.post(self.open_settings), default=True),
+            item('최근 교정 기록', lambda: self.post(self.open_history)),
             item('윈도우 시작 시 자동 실행', lambda: self.post(self.toggle_autostart),
                  checked=lambda _: self.store.settings.autostart),
             pystray.Menu.SEPARATOR,

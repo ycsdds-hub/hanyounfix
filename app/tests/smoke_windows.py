@@ -33,5 +33,14 @@ with mock.patch.object(ui_mod, 'set_autostart', lambda on: calls.append(on)):
     assert Store(store.path).settings.autostart is False  # 저장됨
     app.toggle_autostart()
     assert store.settings.autostart is True and calls == [False, True]
+    # 최근 교정 기록 창
+    from hanyoung.history import History  # noqa: E402
+    app.history = History(os.path.join(tempfile.mkdtemp(), 'recent.json'))
+    app.history.add({'kind': 'fix', 'before': 'dkssud', 'after': '안녕', 'mode': 'en', 'app': 'notepad.exe'})
+    w = app.open_history()
+    w.update()
+    text = w.winfo_children()[0].winfo_children()[0].get('1.0', 'end')
+    assert 'dkssud → 안녕' in text and 'notepad.exe' in text, text
+    w.destroy()
     app.root.destroy()
 print('smoke ok')

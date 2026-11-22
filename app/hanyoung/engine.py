@@ -122,13 +122,16 @@ class _Word:
 
 class Engine:
     def __init__(self, platform: Platform, dictionary: Dictionary, settings: Settings,
-                 notify=None, on_learn=None, on_toggle=None, clock=time.monotonic):
+                 notify=None, on_learn=None, on_toggle=None, clock=time.monotonic, on_fix=None):
         self.p = platform
         self.dict = dictionary
         self.settings = settings
         self.notify = notify or (lambda before, after, message=None: None)
         self.on_learn = on_learn or (lambda word: None)
         self.on_toggle = on_toggle or (lambda enabled: None)
+        # 교정 기록용: {'kind': 'fix'|'undo'|'keep', 'before', 'after', 'mode', 'app'} (최근 교정 보기)
+        self.on_fix = on_fix or (lambda entry: None)
+        self.app_name = ''
         self.clock = clock
         self.lock = threading.RLock()
         self.busy = False
@@ -190,6 +193,7 @@ class Engine:
         s = ''.join(k.char for k in keys).lower()
         self.kept = [k for k in self.kept if not (k[0] == s and k[1] == mode and k[2] == self.window)]
         self.kept.append([s, mode, self.window, self.clock()])
+        self._record('keep', word, '', mode)
         if self.settings.show_toast:
             self.notify(None, None, f"다시 쓰셔서 '{word}'은(는) 이 창에서 10분 동안 그대로 둘게요")
 
@@ -245,6 +249,8 @@ class Engine:
             self.reset()
             self.history = []
             return False
+        if ev.app:
+            self.app_name = ev.app
         if ev.window != self.window:
             self.window = ev.window
             self.reset()
@@ -440,8 +446,15 @@ class Engine:
                 self.reset()
             if boundary_ev is not None:
                 self.queue.insert(0, KeyEvent(**{**boundary_ev.__dict__, 'source': 'user'}))
+        self._record('fix', before, after, mode)
         if self.settings.show_toast:
             self.notify(before, after)
+
+    def _record(self, kind, before, after='', mode=None):
+        try:
+            self.on_fix({'kind': kind, 'before': before, 'after': after, 'mode': mode, 'app': self.app_name})
+        except Exception as e:  # noqa: BLE001  기록 실패가 교정을 막지 않도록
+            print('교정 기록 오류:', e)
 
     def _undo(self):
         f = self.last_fix
@@ -465,5 +478,6 @@ class Engine:
                 self.settings.user_words.append(word)
                 self.dict.user_words.add(word)
         self.on_learn(word)
+        self._record('undo', f.after, f.before, f.orig_mode)
         if self.settings.show_toast:
             self.notify(None, None, f"'{f.learn or f.before}'은(는) 앞으로 고치지 않을게요")
