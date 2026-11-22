@@ -97,7 +97,8 @@ class Settings:
     check_length: int = 6
     show_toast: bool = True
     user_words: list[str] = field(default_factory=list)
-    excluded_apps: list[str] = field(default_factory=lambda: ['chrome.exe'])
+    # 브라우저도 앱이 고침 (주소창 포함). Chrome 확장은 앱이 켜져 있으면 스스로 물러남
+    excluded_apps: list[str] = field(default_factory=list)
     autostart: bool = True   # 처음 설치하면 Windows/Mac 시작 시 자동 실행 (설정에서 끌 수 있음)
 
 

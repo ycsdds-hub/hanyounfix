@@ -19,7 +19,7 @@ assert ids, '입력 소스 목록이 비어 있음'
 d = Dictionary.load()
 assert d.is_word('hello') and not d.is_word('dkssud')
 s = Store(os.path.join(tempfile.mkdtemp(), 'settings.json'))
-assert s.settings.excluded_apps == ['google chrome'], s.settings.excluded_apps
+assert s.settings.excluded_apps == [], s.settings.excluded_apps
 p = mac.MacPlatform()
 print('앞에 있는 앱:', p.front.name, '창:', p.front.window(), '모드:', p.get_mode())
 print('권한:', mac.has_permissions(prompt=False))

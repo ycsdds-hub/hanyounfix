@@ -18,6 +18,7 @@ RUN_KEY = r'Software\Microsoft\Windows\CurrentVersion\Run'
 
 
 IS_MAC = sys.platform == 'darwin'
+OLD_DEFAULT_EXCLUDED = {'chrome.exe', 'google chrome'}  # 예전 기본 제외 앱 (한 번만 지움)
 MAC_AGENT_ID = 'com.hanyoungfix.app'
 
 
@@ -36,9 +37,6 @@ class Store:
         self.path = path or os.path.join(config_dir(), 'settings.json')
         self.lock = threading.Lock()
         self.settings = Settings()
-        if IS_MAC:
-            # Mac에서 Chrome 실행 파일 이름. Chrome 확장과 함께 고치면 글자가 지워질 수 있어 기본으로 제외
-            self.settings.excluded_apps = ['google chrome']
         self.trusted_apps: dict[str, bool] = {}
         self.load()
 
@@ -54,6 +52,9 @@ class Store:
                 setattr(self.settings, k, v)
         self.trusted_apps = {k.lower(): bool(v) for k, v in data.get('trusted_apps', {}).items()}
         s = self.settings
+        if not data.get('browser_by_app'):
+            # 예전 기본값(Chrome은 확장이 맡음)이면 지움: 확장은 주소창을 못 고치므로 이제 앱이 맡음
+            s.excluded_apps = [a for a in s.excluded_apps if a.lower() not in OLD_DEFAULT_EXCLUDED]
         s.check_length = max(4, min(30, int(s.check_length)))
         s.excluded_apps = [a.lower() for a in s.excluded_apps]
 
@@ -61,6 +62,7 @@ class Store:
         with self.lock:
             data = asdict(self.settings)
             data['trusted_apps'] = self.trusted_apps
+            data['browser_by_app'] = True
             tmp = self.path + '.tmp'
             with open(tmp, 'w', encoding='utf-8') as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)

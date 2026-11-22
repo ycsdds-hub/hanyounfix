@@ -12,6 +12,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from hanyoung.core import Dictionary  # noqa: E402
 from hanyoung.engine import Engine  # noqa: E402
 from hanyoung.settings import Store, config_dir, sync_autostart  # noqa: E402
+from hanyoung import status_server  # noqa: E402
 
 
 def _log_to_file(always=False):
@@ -49,6 +50,7 @@ def main_windows():
     platform.engine = engine
     app.engine, app.platform = engine, platform
 
+    status_server.start(lambda: store.settings.enabled)  # Chrome 확장이 앱이 켜져 있으면 쉬도록
     hooks = win32.Hooks(engine, platform)
     hooks.start()
     if not store.trusted_apps:
@@ -82,6 +84,7 @@ def main_mac():
     platform.engine = engine
     app.engine, app.platform = engine, platform
 
+    status_server.start(lambda: store.settings.enabled)  # Chrome 확장이 앱이 켜져 있으면 쉬도록
     hooks = mac.Hooks(engine, platform)
     app.hooks = hooks
     perms = mac.has_permissions(prompt=True)

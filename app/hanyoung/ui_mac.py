@@ -167,7 +167,7 @@ class MacApp(rumps.App):
         s = self.store.settings
         apps = self._edit_list('교정하지 않을 앱',
                                '앱 실행 파일 이름, 한 줄에 하나 (메뉴의 상태 줄에 보이는 이름)\n'
-                               'google chrome은 Chrome 확장이 고치므로 기본으로 제외돼 있어요.', s.excluded_apps)
+                               '브라우저(주소창 포함)도 이 앱이 고쳐요. 앱이 켜져 있으면 Chrome 확장은 쉬어요.', s.excluded_apps)
         if apps is not None:
             s.excluded_apps = [a.lower() for a in apps]
             self.store.save()

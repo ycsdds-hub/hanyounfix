@@ -200,7 +200,7 @@ class EngineTest(unittest.TestCase):
         self.assertEqual(h.ime.screen, 'dkssud ')
 
     def test_excluded_app_and_disabled(self):
-        h = Harness(EN)
+        h = Harness(EN, excluded_apps=['chrome.exe'])
         h.app = 'chrome.exe'
         h.type('dkssud ')
         self.assertEqual(h.ime.screen, 'dkssud ')

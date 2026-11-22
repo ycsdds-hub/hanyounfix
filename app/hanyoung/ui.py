@@ -81,7 +81,7 @@ class SettingsWindow:
         ttk.Spinbox(f, from_=4, to=30, width=5, textvariable=self.length).grid(row=3, column=1, sticky='e', pady=(10, 0))
 
         ttk.Label(f, text='교정하지 않을 프로그램 (실행 파일 이름, 한 줄에 하나)').grid(row=4, column=0, columnspan=2, sticky='w', pady=(12, 2))
-        ttk.Label(f, text='chrome.exe는 Chrome 확장이 고치므로 기본으로 제외돼 있어요.', foreground='#656d76').grid(row=5, column=0, columnspan=2, sticky='w')
+        ttk.Label(f, text='브라우저(주소창 포함)도 이 앱이 고쳐요. 앱이 켜져 있으면 Chrome 확장은 쉬어요.', foreground='#656d76').grid(row=5, column=0, columnspan=2, sticky='w')
         self.apps = tk.Text(f, width=46, height=4, font=('Consolas', 10))
         self.apps.insert('1.0', '\n'.join(s.excluded_apps))
         self.apps.grid(row=6, column=0, columnspan=2, sticky='we')
