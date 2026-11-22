@@ -31,6 +31,7 @@
     }
   ],
   "permissions": ["storage", "activeTab"],
+  "host_permissions": ["http://127.0.0.1:47321/*"],
   "commands": {
     "toggle-enabled": {
       "suggested_key": { "default": "Alt+Shift+H", "mac": "Alt+Shift+H" },

@@ -39,8 +39,11 @@ class Store:
         self.settings = Settings()
         self.trusted_apps: dict[str, bool] = {}
         self.load()
+        if self._migrated:
+            self.save()  # 바뀐 기본값을 설정 파일에도 바로 반영
 
     def load(self):
+        self._migrated = False
         try:
             with open(self.path, encoding='utf-8') as f:
                 data = json.load(f)
@@ -55,6 +58,7 @@ class Store:
         if not data.get('browser_by_app'):
             # 예전 기본값(Chrome은 확장이 맡음)이면 지움: 확장은 주소창을 못 고치므로 이제 앱이 맡음
             s.excluded_apps = [a for a in s.excluded_apps if a.lower() not in OLD_DEFAULT_EXCLUDED]
+            self._migrated = True
         s.check_length = max(4, min(30, int(s.check_length)))
         s.excluded_apps = [a.lower() for a in s.excluded_apps]
 

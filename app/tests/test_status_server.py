@@ -41,6 +41,7 @@ class BrowserDefaultTest(unittest.TestCase):
         json.dump({'excluded_apps': ['chrome.exe', 'kakaotalk.exe']}, open(p, 'w'))
         s = Store(p)
         self.assertEqual(s.settings.excluded_apps, ['kakaotalk.exe'])
+        self.assertEqual(json.load(open(p))['excluded_apps'], ['kakaotalk.exe'])  # 파일에도 바로 반영
         s.settings.excluded_apps.append('chrome.exe')   # 사용자가 다시 넣으면 그대로 둠
         s.save()
         self.assertEqual(Store(p).settings.excluded_apps, ['kakaotalk.exe', 'chrome.exe'])

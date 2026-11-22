@@ -31,7 +31,20 @@
     settings = { ...DEFAULTS, ...s };
     userWords = new Set(settings.userWords.map((w) => w.toLowerCase()));
   }
-  const active = () => settings.enabled && !settings.disabledSites.includes(host);
+  // Windows/Mac 앱이 켜져 있으면 앱이 이 입력칸도 고치므로 확장은 쉼 (3초마다, 보이는 탭에서만 확인)
+  let appOn = false;
+  function refreshApp() {
+    if (document.hidden) return;
+    try {
+      chrome.runtime.sendMessage({ type: 'appActive' }).then((v) => { appOn = v === true; }).catch(() => {});
+    } catch {
+      appOn = false; // 확장을 다시 불러온 뒤 남은 옛 스크립트
+    }
+  }
+  refreshApp();
+  setInterval(refreshApp, 3000);
+  document.addEventListener('visibilitychange', refreshApp);
+  const active = () => settings.enabled && !settings.disabledSites.includes(host) && !appOn;
 
   // ---------- 사전 조회 (background에 위임, 결과 캐시) ----------
   // cache: 단어 → { w: 사전에 있음, c: 흔한 단어, p: 더 긴 단어의 앞부분 }

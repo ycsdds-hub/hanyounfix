@@ -32,7 +32,30 @@ function isPrefix(sorted, w) {
   return false;
 }
 
+// Windows/Mac 앱(HanYoungFix)이 켜져 있는지. 켜져 있으면 앱이 주소창까지 고치므로 확장은 쉼 (같은 글자를 두 번 고치지 않게)
+let appCache = { t: 0, on: false };
+async function appActive() {
+  if (Date.now() - appCache.t < 3000) return appCache.on;
+  let on = false;
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 500);
+    const r = await fetch('http://127.0.0.1:47321/status', { signal: ctrl.signal, cache: 'no-store' });
+    clearTimeout(timer);
+    const j = await r.json();
+    on = j?.app === 'HanYoungFix' && j.enabled === true;
+  } catch {
+    on = false; // 앱이 꺼져 있음
+  }
+  appCache = { t: Date.now(), on };
+  return on;
+}
+
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+  if (msg?.type === 'appActive') {
+    appActive().then(sendResponse);
+    return true; // 비동기 응답
+  }
   if (msg?.type === 'lookup' && Array.isArray(msg.words)) {
     loadDict()
       .then((d) => sendResponse(msg.words.map((w) => ({ w: d.all.has(w), c: d.common.has(w), p: isPrefix(d.sorted, w) }))))

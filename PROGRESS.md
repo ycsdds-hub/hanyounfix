@@ -8,8 +8,9 @@
 **브랜치:** `chrome-by-app`. 원인: 앱 설정에서 chrome.exe 제외, 확장은 주소창을 못 고침
 - [x] 앱: 기본 제외 앱 없음, 예전 기본값(chrome.exe / google chrome)은 한 번 지움 (`browser_by_app` 표시)
 - [x] 앱: `status_server.py` (127.0.0.1:47321/status), Windows·Mac 둘 다 시작, 테스트 → 51개 통과
-- [ ] 확장: 앱이 켜져 있으면 쉬기 (background가 /status 확인, manifest host_permissions)
-- [ ] exe 다시 빌드, 이 PC 설정에서 chrome.exe 빠졌는지·/status 응답 확인, 사용자에게 주소창·확장 새로고침 확인 요청
+- [x] 확장: 앱이 켜져 있으면 쉬기 (background가 /status 확인, manifest host_permissions)
+- [x] exe 다시 빌드·교체: 설정 excluded [] (파일에도 반영), /status 응답, 자동 실행 유지 확인. README 수정
+- [ ] 사용자에게 주소창 확인과 확장 새로고침(↻) 요청
 - [ ] CI, main 합치기, Obsidian 기록
 
 ## 최근 끝난 작업
