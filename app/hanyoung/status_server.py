@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import json
+import socketserver
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
@@ -35,6 +36,12 @@ def start(get_enabled, port: int = PORT):
 
     class Server(ThreadingHTTPServer):
         allow_reuse_address = False  # Windows에서 같은 포트를 두 번 여는 것을 막음
+
+        def server_bind(self):
+            # HTTPServer.server_bind는 socket.getfqdn()으로 컴퓨터 이름을 찾는데, Mac에서는 이게
+            # 수십 초 걸려 앱 시작(키보드 감시)이 늦어졌음 (CI 실측). 이름 찾기 없이 바로 묶음
+            socketserver.TCPServer.server_bind(self)
+            self.server_name, self.server_port = self.server_address[:2]
 
     try:
         server = Server(('127.0.0.1', port), Handler)

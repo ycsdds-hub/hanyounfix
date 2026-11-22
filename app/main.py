@@ -50,9 +50,9 @@ def main_windows():
     platform.engine = engine
     app.engine, app.platform = engine, platform
 
-    status_server.start(lambda: store.settings.enabled)  # Chrome 확장이 앱이 켜져 있으면 쉬도록
     hooks = win32.Hooks(engine, platform)
     hooks.start()
+    status_server.start(lambda: store.settings.enabled)  # Chrome 확장이 앱이 켜져 있으면 쉬도록
     if not store.trusted_apps:
         app.notify(None, None, '한영 자동 교정 시작! 쓰는 프로그램에서 한/영 키를 한 번 눌러 주세요')
     try:
@@ -84,13 +84,13 @@ def main_mac():
     platform.engine = engine
     app.engine, app.platform = engine, platform
 
-    status_server.start(lambda: store.settings.enabled)  # Chrome 확장이 앱이 켜져 있으면 쉬도록
     hooks = mac.Hooks(engine, platform)
     app.hooks = hooks
     perms = mac.has_permissions(prompt=True)
     if not hooks.start():
         print('키보드 감시를 시작하지 못함 (권한 필요):', perms)
         app.need_permission()
+    status_server.start(lambda: store.settings.enabled)  # Chrome 확장이 앱이 켜져 있으면 쉬도록
     try:
         app.run()
     finally:

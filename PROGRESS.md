@@ -10,8 +10,10 @@
 - [x] 앱: `status_server.py` (127.0.0.1:47321/status), Windows·Mac 둘 다 시작, 테스트 → 51개 통과
 - [x] 확장: 앱이 켜져 있으면 쉬기 (background가 /status 확인, manifest host_permissions)
 - [x] exe 다시 빌드·교체: 설정 excluded [] (파일에도 반영), /status 응답, 자동 실행 유지 확인. README 수정
-- [ ] 사용자에게 주소창 확인과 확장 새로고침(↻) 요청
+- [x] 사용자 확인: Chrome 주소창에서 영어 모드 dkssud → 안녕
 - [ ] CI, main 합치기, Obsidian 기록
+  - CI 실패 1: 상태 서버 오류 문구(한국어)가 영문 Windows 콘솔에서 멈춤 → 오류 번호만 출력
+  - CI 실패 2 (Mac, 두 번 연속): 앱이 아무것도 안 고침. 원인 추정: HTTPServer가 시작할 때 getfqdn(이름 찾기)으로 수십 초 걸려 키보드 감시 시작이 늦어짐 → 이름 찾기 생략, 상태 서버는 키보드 감시 뒤에 시작 → 다시 확인
 
 ## 최근 끝난 작업
 
