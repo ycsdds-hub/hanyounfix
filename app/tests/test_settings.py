@@ -59,8 +59,10 @@ class DefaultTrustTest(unittest.TestCase):
 
     def test_new_install_trusts_browsers(self):
         store = S.Store(os.path.join(tempfile.mkdtemp(), 'settings.json'))
-        self.assertIs(store.trusted_apps.get('msedge.exe'), True)
-        self.assertIs(store.trusted_apps.get('chrome.exe'), True)
+        # 2026-11-23 실측: 주소창에서 한/영 상태를 바로 알려 주고 교정이 되는 브라우저
+        for exe in ('chrome.exe', 'msedge.exe', 'whale.exe', 'brave.exe', 'opera.exe', 'vivaldi.exe',
+                    'comet.exe', 'ego.exe', 'aside.exe', 'nortonbrowser.exe'):
+            self.assertIs(store.trusted_apps.get(exe), True, exe)
 
     def test_existing_settings_gain_edge_but_keep_learned_false(self):
         path = os.path.join(tempfile.mkdtemp(), 'settings.json')
