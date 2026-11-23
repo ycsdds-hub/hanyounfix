@@ -18,7 +18,7 @@ s.settings.user_words.append('test')
 s.trusted_apps['notepad.exe'] = True
 s.save()
 s2 = Store(s.path)
-assert s2.settings.user_words == ['test'] and s2.trusted_apps == {'notepad.exe': True}
+assert s2.settings.user_words == ['test'] and s2.trusted_apps.get('notepad.exe') is True
 print('foreground:', win32.app_name(win32.foreground()), 'mode:', win32.ime_mode())
 # 오른쪽 아래 아이콘 메뉴의 '윈도우 시작 시 자동 실행' 켜기/끄기 (레지스트리는 가짜로)
 from unittest import mock  # noqa: E402

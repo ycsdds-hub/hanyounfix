@@ -24,3 +24,4 @@ Preconditions:
 
 - `trust-block`은 drive가 trust를 항상 먼저 돌려서 지금은 몰 수 없다. 확인하려면 trust 없이 치는 journey를 추가해야 한다 (기대: 오타 그대로, recent.json 비어 있음).
 - 한/영 키가 상태를 못 바꾸는 환경(한국어 배열 아님)이면 `ime_mode()`가 None이라 신뢰도 저장되지 않는다. doctor의 keyboard layout 줄을 본다.
+- Chrome(`chrome.exe`)과 Edge(`msedge.exe`)는 처음부터 신뢰한다 (`settings.DEFAULT_TRUSTED`). 이 둘로는 `trust-learn`을 증명할 수 없으니 drive의 Tk 창(`python.exe`)으로 확인한다.

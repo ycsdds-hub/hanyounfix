@@ -19,6 +19,9 @@ RUN_KEY = r'Software\Microsoft\Windows\CurrentVersion\Run'
 
 IS_MAC = sys.platform == 'darwin'
 OLD_DEFAULT_EXCLUDED = {'chrome.exe', 'google chrome'}  # 예전 기본 제외 앱 (한 번만 지움)
+# 한/영 키를 누르기 전부터 믿는 프로그램 (Windows). 주소창·페이지 모두 한/영 상태를 바로 알려 주는 것을
+# 실측함. 사용자가 확인 못 함(False)으로 배운 값이 있으면 그 값이 우선
+DEFAULT_TRUSTED = ('chrome.exe', 'msedge.exe')
 MAC_AGENT_ID = 'com.hanyoungfix.app'
 
 
@@ -39,6 +42,8 @@ class Store:
         self.settings = Settings()
         self.trusted_apps: dict[str, bool] = {}
         self.load()
+        for app in DEFAULT_TRUSTED:
+            self.trusted_apps.setdefault(app, True)
         if self._migrated:
             self.save()  # 바뀐 기본값을 설정 파일에도 바로 반영
 
