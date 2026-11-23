@@ -52,3 +52,21 @@ class AutostartTest(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class DefaultTrustTest(unittest.TestCase):
+    """한/영 상태를 제대로 알려 주는 것을 확인한 브라우저는 한/영 키를 누르기 전에도 교정"""
+
+    def test_new_install_trusts_browsers(self):
+        store = S.Store(os.path.join(tempfile.mkdtemp(), 'settings.json'))
+        self.assertIs(store.trusted_apps.get('msedge.exe'), True)
+        self.assertIs(store.trusted_apps.get('chrome.exe'), True)
+
+    def test_existing_settings_gain_edge_but_keep_learned_false(self):
+        path = os.path.join(tempfile.mkdtemp(), 'settings.json')
+        with open(path, 'w', encoding='utf-8') as f:
+            f.write('{"browser_by_app": true, "trusted_apps": {"chrome.exe": false, "notepad.exe": true}}')
+        store = S.Store(path)
+        self.assertIs(store.trusted_apps['msedge.exe'], True)
+        self.assertIs(store.trusted_apps['chrome.exe'], False)  # 사용자 환경에서 확인한 결과가 우선
+        self.assertIs(store.trusted_apps['notepad.exe'], True)
