@@ -21,9 +21,10 @@ IS_MAC = sys.platform == 'darwin'
 OLD_DEFAULT_EXCLUDED = {'chrome.exe', 'google chrome'}  # 예전 기본 제외 앱 (한 번만 지움)
 # 한/영 키를 누르기 전부터 믿는 프로그램 (Windows). 주소창에서 한/영 상태를 바로(20ms 안) 알려 주고
 # 교정이 되는 것을 실측한 Chromium 계열 브라우저 (2026-11-23, .claude/skills/verify/scripts/browsers.py).
-# Firefox는 측정하지 못해 넣지 않음. 사용자가 확인 못 함(False)으로 배운 값이 있으면 그 값이 우선
+# Firefox는 사용자가 실제 키보드로 확인함 (한/영 키 뒤 신뢰 True, 주소창 교정 기록).
+# 사용자가 확인 못 함(False)으로 배운 값이 있으면 그 값이 우선
 DEFAULT_TRUSTED = ('chrome.exe', 'msedge.exe', 'whale.exe', 'brave.exe', 'opera.exe', 'vivaldi.exe',
-                   'comet.exe', 'ego.exe', 'aside.exe', 'nortonbrowser.exe')
+                   'comet.exe', 'ego.exe', 'aside.exe', 'nortonbrowser.exe', 'firefox.exe')
 MAC_AGENT_ID = 'com.hanyoungfix.app'
 
 

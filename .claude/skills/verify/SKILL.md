@@ -58,7 +58,7 @@ python .claude/skills/verify/scripts/browsers.py [--no-trust] [exe이름 ...]
 
 - 레지스트리에 등록된 브라우저마다 새 창(about:blank)을 열어 주소창에서 한/영 조회·전환 시간을 재고, `dkssud `(한글 모드면 `hello `)를 쳐서 교정 기록(`recent.json`)과 주소창 글자로 판정한 뒤 **자기가 연 창만** 닫는다. 브라우저당 약 10초.
 - `--no-trust`: 한/영 키를 누르지 않는다. 기본 신뢰 목록(`settings.DEFAULT_TRUSTED`)만으로 고치는지 확인할 때 쓴다.
-- Firefox는 사용자 프로필 대신 임시 프로필로 띄운다 (프로필 선택 창에서 멈추지 않게). 이 PC에서는 임시 프로필 Firefox가 계속 '응답 없음'이라 측정하지 못했다 (2026-11-23).
+- Firefox는 사용자 프로필 대신 임시 프로필로 띄운다 (프로필 선택 창에서 멈추지 않게). 이 PC에서는 임시 프로필 Firefox가 계속 '응답 없음'이라 측정하지 못했다. 사용자가 실제 키보드로 확인해 기본 신뢰에 넣음 (2026-11-23).
 - 결과: `verify-evidence/<시각>-browsers/`. 꺼져 있던 브라우저는 처음 뜰 때 느려서 실패로 나올 수 있으니 한 번 더 돌린다. Caps Lock이 켜져 있으면 시작하지 않는다.
 
 ## Evidence
