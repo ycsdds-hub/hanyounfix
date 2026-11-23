@@ -50,6 +50,17 @@ python .claude/skills/verify/scripts/drive.py [journey ...]
 - 새 사례를 넣으려면 `drive.py`의 `JOURNEYS`에 `(시작 한/영, 칠 키, 기대 결과)`를 추가하고 `features/`에도 적는다. 키는 영문 소문자, 띄어쓰기, `.`, `?`(Shift+/), `|`(Shift+Enter), 줄바꿈 문자(Enter)를 지원한다. 창은 채팅 입력창처럼 Enter를 `[send]`로, Shift+Enter를 줄바꿈으로 적는다.
 - 창을 못 가져오거나 한/영을 못 맞추면 `FAIL <journey>: 준비 실패 focus=... 한/영=...`. 사용자가 다른 창을 클릭했거나 전체 화면 앱이 떠 있는 경우가 많다.
 
+## 브라우저 주소창 (browsers.py)
+
+```
+python .claude/skills/verify/scripts/browsers.py [--no-trust] [exe이름 ...]
+```
+
+- 레지스트리에 등록된 브라우저마다 새 창(about:blank)을 열어 주소창에서 한/영 조회·전환 시간을 재고, `dkssud `(한글 모드면 `hello `)를 쳐서 교정 기록(`recent.json`)과 주소창 글자로 판정한 뒤 **자기가 연 창만** 닫는다. 브라우저당 약 10초.
+- `--no-trust`: 한/영 키를 누르지 않는다. 기본 신뢰 목록(`settings.DEFAULT_TRUSTED`)만으로 고치는지 확인할 때 쓴다.
+- Firefox는 사용자 프로필 대신 임시 프로필로 띄운다 (프로필 선택 창에서 멈추지 않게). 이 PC에서는 임시 프로필 Firefox가 계속 '응답 없음'이라 측정하지 못했다 (2026-11-23).
+- 결과: `verify-evidence/<시각>-browsers/`. 꺼져 있던 브라우저는 처음 뜰 때 느려서 실패로 나올 수 있으니 한 번 더 돌린다. Caps Lock이 켜져 있으면 시작하지 않는다.
+
 ## Evidence
 
 `verify-evidence/<YYYYMMDD-HHMMSS>/` (git 무시 대상, cleanup이 지우지 않음):
