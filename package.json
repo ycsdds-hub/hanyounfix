@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "test": "node --test test/*.test.mjs",
+    "test:ext": "node test/e2e-extension.mjs",
     "build:words": "node scripts/build-words.mjs"
   },
   "devDependencies": {
