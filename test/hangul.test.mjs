@@ -61,3 +61,16 @@ test('문맥 교정 공통 사례 (cases.json)', () => {
 test('예전 호출 방식(함수 하나)도 동작', () => {
   assert.equal(decide('dkssud', (w) => all.has(w)), '안녕');
 });
+
+test('한글 모드로 친 웹 주소는 통째로 영문으로 (decideAddress)', () => {
+  const { decideAddress } = globalThis.HanYoung;
+  assert.equal(typeof decideAddress, 'function');
+  assert.equal(decideAddress('ㅈㅈㅈ.ㅇㄷ르둥'), 'www.defmend'); // 사용자가 실제로 친 글자
+  for (const url of ['www.defend', 'www.naver.com', 'naver.com', 'https://google.com/search?q=1', 'mail.google.co.kr', 'abc@gmail.com', 'github.io/x']) {
+    assert.equal(decideAddress(engToHangul(url)), url, url);
+  }
+  // 바꾸지 않음: 한글 문장, 이미 영문, 주소 모양이 아님
+  for (const t of ['안녕.', '안녕하세요', '가.나', 'www.naver.com', 'ㅋㅋ.ㅋㅋ', '3.14', '했다.ㅋㅋ', '']) {
+    assert.equal(decideAddress(t), null, t);
+  }
+});

@@ -76,8 +76,11 @@ async function typeInto(sessionId, sel, text, gap) {
   await evaluate(sessionId, `document.querySelector('${sel}').focus()`);
   await sleep(300);
   for (const ch of text) {
-    await send('Input.dispatchKeyEvent', { type: 'keyDown', key: ch, text: ch, unmodifiedText: ch }, sessionId);
-    await send('Input.dispatchKeyEvent', { type: 'keyUp', key: ch }, sessionId);
+    const ev = ch === '\n'
+      ? { key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, text: '\r', unmodifiedText: '\r' }
+      : { key: ch, text: ch, unmodifiedText: ch };
+    await send('Input.dispatchKeyEvent', { type: 'keyDown', ...ev }, sessionId);
+    await send('Input.dispatchKeyEvent', { type: 'keyUp', key: ev.key, code: ev.code, windowsVirtualKeyCode: ev.windowsVirtualKeyCode }, sessionId);
     await sleep(gap);
   }
 }
@@ -85,29 +88,30 @@ const valueOf = (sessionId, sel) =>
   evaluate(sessionId, `(()=>{const e=document.querySelector('${sel}'); return (e.value ?? e.textContent).replace(/\\u00a0/g, ' ')})()`);
 
 const cases = [
-  { name: '보통 속도', delay: 0 },
+  { name: '보통 속도', delay: 0, text: 'dkssudgktpdy ', want: '안녕하세요 ' },
   // 사전 조회 답이 늦게 오는 경우 (서비스 워커가 막 깨어나 사전을 읽는 중)
-  { name: '사전 조회가 2초 늦음', delay: 2000 },
+  { name: '사전 조회가 2초 늦음', delay: 2000, text: 'dkssudgktpdy ', want: '안녕하세요 ' },
+  // 한글 모드로 친 웹 주소 (ㅈㅈㅈ.ㅇㄷㄹ둥 = www.defend)
+  { name: '한글 모드 주소 + 띄어쓰기', delay: 0, text: 'ㅈㅈㅈ.ㅇㄷㄹ둥 ', want: 'www.defend ' },
+  { name: '한글 모드 주소 + Enter', delay: 0, text: 'ㅈㅈㅈ.ㅜㅁㅍㄷㄱ.채ㅡ\n', want: 'www.naver.com\n', only: '#t' },
 ];
-const WORDS = 'dkssudgktpdy ';
-const WANT = '안녕하세요 ';
 
 let failed = 0;
 try {
   const { id: extId } = await send('Extensions.loadUnpacked', { path: EXT });
   let sw = null; // 서비스 워커는 페이지가 메시지를 보내야 깨어나므로 첫 페이지를 연 뒤 찾음
   for (const c of cases) {
-    for (const sel of ['#t', '#c']) {
+    for (const sel of c.only ? [c.only] : ['#t', '#c']) {
       const page = await openPage();
       sw ??= await workerSession(extId);
       if (c.delay) {
         // 다음 사전 조회를 늦춤: 불러온 사전 대신 c.delay 뒤에 불러오는 약속을 넣어 둠
         await evaluate(sw, `dictPromise = new Promise((r) => setTimeout(r, ${c.delay})).then(() => { dictPromise = null; return loadDict(); }); true`);
       }
-      await typeInto(page.sessionId, sel, WORDS, 60);
+      await typeInto(page.sessionId, sel, c.text, 60);
       await sleep(c.delay + 3000);
       const got = await valueOf(page.sessionId, sel);
-      const ok = got === WANT;
+      const ok = got === c.want;
       if (!ok) failed++;
       console.log(`${ok ? '통과' : '실패'}  ${c.name} · ${sel === '#t' ? 'textarea' : 'contenteditable'}: ${JSON.stringify(got)}`);
       await send('Target.closeTarget', { targetId: page.targetId });
