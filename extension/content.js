@@ -335,6 +335,8 @@
         if (!now || (now.kind === 'ce' && now.node !== ctx.node && !ctx.node.isConnected)) return;
         const text = now.kind === 'ce' ? ctx.node.data : now.text;
         if (text.slice(tok.start, tok.end) !== tok.token) return; // 그 사이 내용이 바뀜
+        // 치는 중에 한 중간 교정은 그 뒤로 더 친 글자가 없을 때만. 더 쳤으면 앞부분만 바꾸지 않고 다음 검사(띄어쓰기 등)에 맡김
+        if (opts?.midWord && now.caret !== tok.end) return;
         tryFix({ ...now, node: ctx.node ?? now.node }, tok, opts);
       };
       if (composing) afterComposition.push(run);
@@ -373,6 +375,13 @@
     if (/^[A-Za-z]$/.test(e.data) && tok.token.length >= settings.checkLength) {
       checkAsync(el, ctx.caret, { midWord: true });
     }
+  }, true);
+
+  window.addEventListener('focusin', (e) => {
+    if (!active() || !editableOf(e.target)) return;
+    try {
+      chrome.runtime.sendMessage({ type: 'warm' }).catch(() => {});
+    } catch {} // 확장을 다시 불러온 뒤 남은 옛 스크립트
   }, true);
 
   window.addEventListener('keydown', (e) => {

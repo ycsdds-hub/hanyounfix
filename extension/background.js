@@ -56,6 +56,11 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     appActive().then(sendResponse);
     return true; // 비동기 응답
   }
+  if (msg?.type === 'warm') {
+    // 입력칸에 들어갔을 때 사전을 미리 읽어 둠 (서비스 워커가 막 깨어나면 첫 조회가 몇 초 걸릴 수 있음)
+    loadDict().catch(() => {});
+    return false;
+  }
   if (msg?.type === 'lookup' && Array.isArray(msg.words)) {
     loadDict()
       .then((d) => sendResponse(msg.words.map((w) => ({ w: d.all.has(w), c: d.common.has(w), p: isPrefix(d.sorted, w) }))))

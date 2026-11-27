@@ -56,7 +56,7 @@ const evaluate = async (sessionId, expression) => {
 };
 
 async function workerSession(extId) {
-  for (let i = 0; i < 50; i++) {
+  for (let i = 0; i < 100; i++) {
     const { targetInfos } = await send('Target.getTargets');
     const sw = targetInfos.find((t) => t.type === 'service_worker' && t.url.includes(extId));
     if (sw) return (await send('Target.attachToTarget', { targetId: sw.targetId, flatten: true })).sessionId;
@@ -95,16 +95,17 @@ const WANT = '안녕하세요 ';
 let failed = 0;
 try {
   const { id: extId } = await send('Extensions.loadUnpacked', { path: EXT });
-  const sw = await workerSession(extId);
+  let sw = null; // 서비스 워커는 페이지가 메시지를 보내야 깨어나므로 첫 페이지를 연 뒤 찾음
   for (const c of cases) {
     for (const sel of ['#t', '#c']) {
       const page = await openPage();
+      sw ??= await workerSession(extId);
       if (c.delay) {
         // 다음 사전 조회를 늦춤: 불러온 사전 대신 c.delay 뒤에 불러오는 약속을 넣어 둠
         await evaluate(sw, `dictPromise = new Promise((r) => setTimeout(r, ${c.delay})).then(() => { dictPromise = null; return loadDict(); }); true`);
       }
       await typeInto(page.sessionId, sel, WORDS, 60);
-      await sleep(c.delay + 1000);
+      await sleep(c.delay + 3000);
       const got = await valueOf(page.sessionId, sel);
       const ok = got === WANT;
       if (!ok) failed++;
