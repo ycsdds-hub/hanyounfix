@@ -322,6 +322,19 @@
     return true;
   }
 
+  /** end 바로 앞의 띄어쓰기 없는 덩어리가 한글 모드로 친 주소면 통째로 영문으로 고치고 true */
+  function tryAddress(ctx, end) {
+    let start = end;
+    while (start > 0 && !/\s/.test(ctx.text[start - 1])) start--;
+    const run = ctx.text.slice(start, end);
+    const fixed = HY.decideAddress(run);
+    if (!fixed) return false;
+    replaceRange(ctx, start, end, fixed);
+    lastFix.delete(ctx.el);
+    toast(run, fixed);
+    return true;
+  }
+
   function checkAsync(el, end, opts) {
     const ctx = readContext(el);
     if (!ctx) return;
@@ -365,6 +378,7 @@
       // contenteditable에서는 끝에 친 띄어쓰기 직후 커서가 띄어쓰기 앞으로 보고될 때가 있음 →
       // 커서 바로 앞이 경계 문자일 때만 그만큼 빼서 단어 끝을 찾음
       const end = ctx.caret > 0 && BOUNDARY.test(ctx.text[ctx.caret - 1]) ? ctx.caret - 1 : ctx.caret;
+      if (/\s/.test(e.data) && tryAddress(ctx, end)) return;
       checkAsync(el, end);
       return;
     }
@@ -405,6 +419,7 @@
     // Enter: 이미 사전 결과가 있으면 기본 동작(전송 등) 전에 동기로 교정
     if (e.key === 'Enter' && !e.isComposing && e.keyCode !== 229) {
       const ctx = readContext(el);
+      if (ctx && tryAddress(ctx, ctx.caret)) return;
       const tok = ctx && findToken(ctx.text, ctx.caret);
       if (tok) tryFix(ctx, tok);
     }

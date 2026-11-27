@@ -192,5 +192,22 @@
     return [...hangul].every(isSyllable) ? hangul : null;
   }
 
-  root.HanYoung = { engToHangul, hangulToEng, decide, decideContext, isSyllable, isJamo };
+  // ---------- 한글 모드로 친 웹 주소 ----------
+  // 주소는 사전 단어가 아니므로 모양으로 판단: 시작(www., http://)이나 끝(.com 등)이 주소인 덩어리
+  const ADDRESS_START = /^(https?:\/\/|www\.)/;
+  const ADDRESS_ENDS = new Set(['com', 'net', 'org', 'kr', 'io', 'co', 'me', 'dev', 'app', 'ai', 'info', 'biz', 'edu', 'gov', 'jp', 'us', 'tv', 'xyz']);
+  const ADDRESS_CHARS = /^[a-z0-9.\-\/:?=&_%#~+@]+$/;
+
+  /** 띄어쓰기 없이 이어 친 덩어리가 한글 모드로 친 주소면 영문 주소, 아니면 null ("ㅈㅈㅈ.ㅇㄷㄹ둥" → "www.defend") */
+  function decideAddress(run) {
+    if (![...run].some((c) => isSyllable(c) || isJamo(c))) return null;
+    const eng = hangulToEng(run).toLowerCase();
+    if (!ADDRESS_CHARS.test(eng)) return null;
+    if (ADDRESS_START.test(eng)) return eng;
+    const host = eng.split('/')[0].split('@').pop();
+    const labels = host.split('.');
+    return labels.length >= 2 && labels.every(Boolean) && ADDRESS_ENDS.has(labels.at(-1)) ? eng : null;
+  }
+
+  root.HanYoung = { engToHangul, hangulToEng, decide, decideContext, decideAddress, isSyllable, isJamo };
 })(typeof globalThis !== 'undefined' ? globalThis : this);
